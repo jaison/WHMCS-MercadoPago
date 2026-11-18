@@ -144,9 +144,15 @@ O painel do Mercado Pago (*Detalhes da aplicação › Qualidade da integração
   - dados do item (código, título, descrição, categoria, quantidade, preço);
   - histórico de compras (cadastro, primeira compra, última compra).
 
-Não se aplicam:
+Com esta versão, a integração alcançou **90/100** na medição do painel (Checkout Pro com API de Orders).
 
-- **`platform_id` / `integration_data`**: são para plataformas parceiras certificadas pelo Mercado Pago, que integram várias contas. Uma loja usando o próprio token não envia.
+Os pontos que faltam são deliberados:
+
+- **`platform_id`**: não se aplica. É só para plataformas parceiras certificadas pelo Mercado Pago, que integram várias contas de vendedores. Uma loja usando o próprio token não envia.
+- **SDK de backend**: não é usado, de propósito. O módulo fala direto com a API REST do Mercado Pago (cURL) para não depender de Composer nem de bibliotecas externas dentro do WHMCS.
+
+Também não são usados:
+
 - **Modo binário**: não é ativado, para não recusar pagamentos que ficariam pendentes (Pix, análise).
 - **Logos oficiais**: o botão usa só texto, porque o pacote não inclui a marca do Mercado Pago.
 
