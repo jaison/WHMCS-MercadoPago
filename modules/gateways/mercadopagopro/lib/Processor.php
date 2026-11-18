@@ -4,7 +4,7 @@ namespace MercadoPagoPro;
 
 /**
  * Baixa de um pagamento já consultado em GET /v1/payments/{id}.
- * Só "approved" em BRL, no modo configurado, com external_reference numérico vira addInvoicePayment.
+ * Só "approved" em BRL, consultado com o token do modo configurado, com external_reference numérico vira addInvoicePayment.
  * Estorno e chargeback só vão para o Log de Gateways. Nada do pagador é registrado.
  */
 final class Processor
@@ -81,10 +81,9 @@ final class Processor
             $this->bridge->log($name, $log, 'Ignorado: pagamento sem id');
             return self::IGNORED;
         }
-        if (array_key_exists('live_mode', $p) && (bool) $p['live_mode'] === $this->config->test) {
-            $this->bridge->log($name, $log, 'Ignorado: modo do pagamento diferente do configurado');
-            return self::IGNORED;
-        }
+        // live_mode fica só no log: com usuários de teste do Mercado Pago ele vem true mesmo com
+        // credenciais de teste. A garantia de modo é o token: o pagamento foi consultado com o token
+        // do modo configurado, então pertence à conta desse modo.
         $kind = self::classify((string) ($p['status'] ?? ''));
         if ($kind === 'reversed') {
             $this->bridge->log($name, $log, 'Estorno ou contestação (sem baixa automática)');

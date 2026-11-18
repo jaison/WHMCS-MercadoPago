@@ -46,7 +46,7 @@ return [
             eq([], $b->payments);
         }
     },
-    'Ignorados: pendente, recusado, outra moeda, sem fatura, modo trocado' => function () {
+    'Ignorados: pendente, recusado, outra moeda, sem fatura' => function () {
         $b = new FakeBridge([501]);
         $p = new Processor($b, Config::fromParams(gw()));
         eq(Processor::IGNORED, $p->settle(payment(['status' => 'pending'])));
@@ -54,12 +54,17 @@ return [
         eq(Processor::IGNORED, $p->settle(payment(['currency_id' => 'USD'])));
         eq(Processor::IGNORED, $p->settle(payment(['external_reference' => 'abc'])));
         eq(Processor::IGNORED, $p->settle(payment(['external_reference' => null])));
-        eq(Processor::IGNORED, $p->settle(payment(['live_mode' => true])), 'pagamento real com o gateway em Teste');
-        $live = new Processor($b, Config::fromParams(gw(['mode' => 'live'])));
-        eq(Processor::IGNORED, $live->settle(payment(['live_mode' => false])), 'pagamento de teste com o gateway em Produção');
         eq([], $b->payments);
-        eq(['Ignorado: moeda diferente de BRL', 'Ignorado: sem fatura ou valor', 'Ignorado: sem fatura ou valor', 'Ignorado: modo do pagamento diferente do configurado', 'Ignorado: modo do pagamento diferente do configurado'], $b->results());
+        eq(['Ignorado: moeda diferente de BRL', 'Ignorado: sem fatura ou valor', 'Ignorado: sem fatura ou valor'], $b->results());
         assertCleanLogs($b);
+    },
+    'live_mode não bloqueia (usuários de teste vêm com true); só aparece no log' => function () {
+        $b = new FakeBridge([501]);
+        eq(Processor::PAID, (new Processor($b, Config::fromParams(gw())))->settle(payment(['live_mode' => true])));
+        eq('sim', $b->logs[0][1]['live_mode']);
+        $b = new FakeBridge([501]);
+        eq(Processor::PAID, (new Processor($b, Config::fromParams(gw(['mode' => 'live']))))->settle(payment(['id' => 222, 'live_mode' => false])));
+        eq(1, count($b->payments));
     },
     'Estorno e chargeback: só Log de Gateways' => function () {
         $b = new FakeBridge([501]);

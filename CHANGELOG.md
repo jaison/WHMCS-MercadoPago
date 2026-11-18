@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.2
+
+- A baixa não depende mais de `live_mode`, que vem `true` em pagamentos de usuários de teste. A garantia de modo é o token usado na consulta do pagamento. O `live_mode` continua no Log de Gateways.
+
 ## 1.0.1
 
 - Modo Teste: o e-mail do cliente do WHMCS não vai mais em `payer.email`. O Mercado Pago recusa vendedor de teste com comprador real ("Uma das partes … é de teste").

@@ -79,7 +79,7 @@ Notificações IPN (`?topic=payment&id=…`) não têm assinatura. Elas são ace
 3. Se quiser, informe o e-mail do comprador de teste no campo *E-mail do comprador de teste*.
 4. Pague a fatura logado como o **comprador de teste**, com os [cartões de teste](https://www.mercadopago.com.br/developers/pt/docs/checkout-pro/additional-content/your-integrations/test/cards).
 
-Pagamentos de teste (`live_mode: false`) com o gateway em Produção, e o inverso, são registrados no Log de Gateways e ignorados.
+O pagamento é sempre consultado com o token do modo escolhido, então só pagamentos da conta desse modo recebem baixa. O campo `live_mode` aparece no Log de Gateways só como informação: com usuários de teste, o Mercado Pago o envia como `true`.
 
 ## Como a baixa funciona
 
