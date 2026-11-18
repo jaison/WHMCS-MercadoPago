@@ -3,8 +3,9 @@
 namespace MercadoPagoPro;
 
 /**
- * Link de pagamento de uma fatura: reaproveita a preferência guardada enquanto o valor e o modo
- * forem os mesmos e faltar mais de MARGIN segundos para expirar; senão cria outra e guarda.
+ * Link de pagamento de uma fatura: reaproveita a preferência guardada enquanto o valor e a chave
+ * (modo + impressão digital do payload, Payloads::fingerprint) forem os mesmos e faltar mais de
+ * MARGIN segundos para expirar; senão cria outra e guarda. A chave fica na coluna "mode".
  */
 final class PreferenceCache
 {
@@ -23,11 +24,11 @@ final class PreferenceCache
      * @param callable(): array $create devolve a preferência criada na API (id, init_point)
      * @return string init_point
      */
-    public function link(int $invoiceId, float $amount, Config $c, int $now, callable $create): string
+    public function link(int $invoiceId, float $amount, Config $c, string $key, int $now, callable $create): string
     {
         $amountText = number_format($amount, 2, '.', '');
         $row = $this->store->find($invoiceId);
-        if ($row && $row['mode'] === $c->mode() && number_format((float) $row['amount'], 2, '.', '') === $amountText
+        if ($row && $row['mode'] === $key && number_format((float) $row['amount'], 2, '.', '') === $amountText
             && $row['expires_at'] - $now > self::MARGIN && $row['init_point'] !== '') {
             return $row['init_point'];
         }
@@ -39,7 +40,7 @@ final class PreferenceCache
         if ($url === '' || strpos($url, 'https://') !== 0) {
             throw new ApiException(-1, 'preferência sem init_point');
         }
-        $this->store->save($invoiceId, $c->mode(), $amountText, (string) ($pref['id'] ?? ''), $url, $now + $c->hours * 3600, $now);
+        $this->store->save($invoiceId, $key, $amountText, (string) ($pref['id'] ?? ''), $url, $now + $c->hours * 3600, $now);
         return $url;
     }
 }

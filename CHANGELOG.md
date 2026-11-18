@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.1
+
+- Modo Teste: o e-mail do cliente do WHMCS não vai mais em `payer.email`. O Mercado Pago recusa vendedor de teste com comprador real ("Uma das partes … é de teste").
+- Novo campo opcional "E-mail do comprador de teste", enviado em `payer.email` só no modo Teste.
+- O link guardado da fatura agora depende de uma impressão digital do payload (versão, comprador, parcelas, boleto e descrição). Links criados pela 1.0.0 são refeitos na próxima visualização.
+
 ## 1.0.0
 
 Primeira versão.

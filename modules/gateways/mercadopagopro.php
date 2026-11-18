@@ -55,6 +55,12 @@ function mercadopagopro_config()
             'Description' => 'Opcional. Se preenchido, webhooks sem assinatura válida são recusados (401).',
         ],
         'secret_test' => ['FriendlyName' => 'Secret do webhook (teste)', 'Type' => 'password', 'Size' => '80', 'Description' => 'Opcional.'],
+        'test_payer_email' => [
+            'FriendlyName' => 'E-mail do comprador de teste',
+            'Type' => 'text',
+            'Size' => '50',
+            'Description' => 'Opcional, só no modo Teste: e-mail da conta de comprador de teste do Mercado Pago. Em Teste, o e-mail do cliente do WHMCS nunca é enviado.',
+        ],
         'installments' => ['FriendlyName' => 'Parcelas máximas', 'Type' => 'text', 'Size' => '4', 'Default' => '12', 'Description' => 'De 1 a 24.'],
         'descriptor' => [
             'FriendlyName' => 'Descrição na fatura do cartão',

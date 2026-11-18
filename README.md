@@ -48,6 +48,7 @@ O id do gateway é `mercadopagopro`. Ele convive com outros módulos do Mercado 
 |---|---|
 | Modo | **Produção** ou **Teste**. Cada modo usa as próprias credenciais. |
 | Access Token de produção / de teste | Em *Suas integrações › sua aplicação › Credenciais*. |
+| E-mail do comprador de teste | Opcional, só no modo Teste. No modo Teste, o e-mail do cliente do WHMCS nunca é enviado ao Mercado Pago. |
 | Secret do webhook (produção / teste) | Opcional. É a "assinatura secreta" mostrada na tela de Webhooks. Se preenchido, notificações de webhook sem assinatura válida recebem 401. |
 | Parcelas máximas | De 1 a 24 (padrão 12). |
 | Descrição na fatura do cartão | Opcional (`statement_descriptor`), até 22 caracteres. |
@@ -75,7 +76,8 @@ Notificações IPN (`?topic=payment&id=…`) não têm assinatura. Elas são ace
 
 1. Em *Suas integrações › sua aplicação › Contas de teste*, crie um vendedor e um comprador de teste.
 2. Use o **Access Token de teste** e escolha o modo **Teste**.
-3. Pague a fatura logado como o **comprador de teste**, com os [cartões de teste](https://www.mercadopago.com.br/developers/pt/docs/checkout-pro/additional-content/your-integrations/test/cards).
+3. Se quiser, informe o e-mail do comprador de teste no campo *E-mail do comprador de teste*.
+4. Pague a fatura logado como o **comprador de teste**, com os [cartões de teste](https://www.mercadopago.com.br/developers/pt/docs/checkout-pro/additional-content/your-integrations/test/cards).
 
 Pagamentos de teste (`live_mode: false`) com o gateway em Produção, e o inverso, são registrados no Log de Gateways e ignorados.
 

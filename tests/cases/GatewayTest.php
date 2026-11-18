@@ -30,8 +30,43 @@ return [
         eq(true, $p['expires']);
         eq('2027-01-15T05:00:00.000-03:00', $p['expiration_date_from']);
         eq('2027-01-17T05:00:00.000-03:00', $p['expiration_date_to']);
-        eq(['email' => 'cliente@example.com'], $p['payer']);
+        ok(!isset($p['payer']), 'modo Teste sem comprador de teste: sem payer.email');
         eq('LojaExemplo 2026 com n', $p['statement_descriptor']);
+    },
+    'payer.email: Produção leva o do cliente; Teste nunca, só o do comprador de teste configurado' => function () use ($now) {
+        $live = Payloads::preference(501, 10, 'cliente@example.com', 'https://x.example', Config::fromParams(gw(['mode' => 'live'])), $now, 't');
+        eq(['email' => 'cliente@example.com'], $live['payer']);
+        $test = Payloads::preference(501, 10, 'cliente@example.com', 'https://x.example', Config::fromParams(gw(['test_payer_email' => 'test_user_123@testuser.com'])), $now, 't');
+        eq(['email' => 'test_user_123@testuser.com'], $test['payer']);
+        $bad = Payloads::preference(501, 10, 'cliente@example.com', 'https://x.example', Config::fromParams(gw(['test_payer_email' => 'não é e-mail'])), $now, 't');
+        ok(!isset($bad['payer']));
+        $liveIgnoresTest = Payloads::preference(501, 10, 'cliente@example.com', 'https://x.example', Config::fromParams(gw(['mode' => 'live', 'test_payer_email' => 'test_user_123@testuser.com'])), $now, 't');
+        eq(['email' => 'cliente@example.com'], $liveIgnoresTest['payer']);
+    },
+    'Chave do cache: 8 caracteres, muda com modo, comprador de teste, parcelas, boleto ou descrição' => function () {
+        $base = Payloads::fingerprint(Config::fromParams(gw()), 'cliente@example.com');
+        ok(preg_match('/^t:[0-9a-f]{6}$/', $base) === 1, $base);
+        eq($base, Payloads::fingerprint(Config::fromParams(gw()), 'outro@example.com'), 'em Teste o e-mail do cliente não entra');
+        $variants = [
+            Payloads::fingerprint(Config::fromParams(gw(['mode' => 'live'])), 'cliente@example.com'),
+            Payloads::fingerprint(Config::fromParams(gw(['test_payer_email' => 'test_user_1@testuser.com'])), 'cliente@example.com'),
+            Payloads::fingerprint(Config::fromParams(gw(['installments' => '3'])), 'cliente@example.com'),
+            Payloads::fingerprint(Config::fromParams(gw(['exclude_ticket' => ''])), 'cliente@example.com'),
+            Payloads::fingerprint(Config::fromParams(gw(['descriptor' => 'LOJA'])), 'cliente@example.com'),
+        ];
+        eq(5, count(array_unique($variants)));
+        ok(!in_array($base, $variants, true));
+        eq(8, strlen($variants[0]));
+    },
+    'Link guardado da versão anterior (chave "test", payload com e-mail do cliente) não é reaproveitado' => function () use ($params, $now, $created) {
+        $store = new MemoryStore();
+        $store->rows[501] = ['invoice_id' => 501, 'mode' => 'test', 'amount' => '59.90', 'pref_id' => 'antiga', 'init_point' => 'https://www.mercadopago.com.br/antiga', 'expires_at' => $now + 72 * 3600];
+        $http = new FakeHttp($created);
+        $html = (new Gateway($http, $store, new FakeBridge()))->link($params(), $now);
+        eq(1, count($http->requests), 'criou preferência nova');
+        ok(!isset($http->requests[0]['body']['payer']), 'sem o e-mail do cliente em Teste');
+        ok(strpos($html, 'pref_id=pref-1') !== false);
+        eq('pref-1', $store->rows[501]['pref_id']);
     },
     'Configuração: padrões e limites (parcelas 12, boleto excluído, 72 h); boleto liberado se desmarcado' => function () {
         $c = Config::fromParams(['mode' => 'live', 'token_live' => ' tok ']);
@@ -69,7 +104,7 @@ return [
         eq('Bearer APP_USR-live-token', $http->requests[2]['headers']['Authorization']);
         $g->link($params(['amount' => '49.90', 'mode' => 'live']), $now + 3600 + 72 * 3600 - 1000);
         eq(4, count($http->requests), 'faltam menos de 30 min');
-        eq('live', $store->rows[501]['mode']);
+        ok(strpos($store->rows[501]['mode'], 'l:') === 0);
         eq('49.90', $store->rows[501]['amount']);
     },
     'Moeda diferente de BRL: aviso, sem preferência' => function () use ($params, $now) {

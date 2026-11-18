@@ -38,8 +38,9 @@ final class Gateway
         $title = ($en ? 'Invoice #' : 'Fatura #') . $invoiceId;
         try {
             $client = new Client($c->token, $this->http);
-            $url = (new PreferenceCache($this->store))->link($invoiceId, $amount, $c, $now, static function () use ($client, $invoiceId, $amount, $params, $systemUrl, $c, $now, $title) {
-                $email = (string) ($params['clientdetails']['email'] ?? '');
+            $email = (string) ($params['clientdetails']['email'] ?? '');
+            $key = Payloads::fingerprint($c, $email);
+            $url = (new PreferenceCache($this->store))->link($invoiceId, $amount, $c, $key, $now, static function () use ($client, $invoiceId, $amount, $email, $systemUrl, $c, $now, $title) {
                 return $client->createPreference(Payloads::preference($invoiceId, $amount, $email, $systemUrl, $c, $now, $title), Client::uuid());
             });
         } catch (ApiException $e) {

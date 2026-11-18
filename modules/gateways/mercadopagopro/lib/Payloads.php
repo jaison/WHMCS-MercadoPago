@@ -10,7 +10,7 @@ final class Payloads
     /**
      * @param int    $invoiceId
      * @param float  $amount     saldo da fatura, em BRL
-     * @param string $email      e-mail do cliente (vai só ao Mercado Pago)
+     * @param string $email      e-mail do cliente do WHMCS (em Teste é trocado pelo do comprador de teste)
      * @param string $systemUrl  URL do WHMCS
      * @param int    $now        timestamp
      */
@@ -38,13 +38,25 @@ final class Payloads
             'expiration_date_from' => self::date($now),
             'expiration_date_to' => self::date($now + $c->hours * 3600),
         ];
-        if ($email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            $p['payer'] = ['email' => $email];
+        $payer = $c->payerEmail($email);
+        if ($payer !== '') {
+            $p['payer'] = ['email' => $payer];
         }
         if ($c->descriptor !== '') {
             $p['statement_descriptor'] = $c->descriptor;
         }
         return $p;
+    }
+
+    /**
+     * Impressão digital do que vai na preferência além de fatura e valor: muda quando muda o
+     * formato do payload (PREFERENCE_VERSION) ou a configuração que entra nele, e aí o link guardado
+     * deixa de valer. 8 caracteres: "t:" ou "l:" (modo) + 6 hexadecimais.
+     */
+    public static function fingerprint(Config $c, string $clientEmail): string
+    {
+        $parts = [Module::PREFERENCE_VERSION, $c->payerEmail($clientEmail), $c->installments, $c->excludeTicket ? 1 : 0, $c->descriptor];
+        return substr($c->mode(), 0, 1) . ':' . substr(hash('sha256', implode('|', $parts)), 0, 6);
     }
 
     public static function refund(float $amount): array
