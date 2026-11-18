@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.0.1
+
+- Tela de configuração reescrita:
+  - rótulo curto e descrição de uma linha em cada campo, com o padrão e o caminho até a configuração no painel (link com nova aba quando há URL estável);
+  - campos em blocos (Produção, Teste);
+  - URL do webhook sempre visível e pronta para copiar, com o evento Order e o Tipo de API Orders;
+  - textos em português ou inglês, conforme o idioma do admin.
+- Teste · Access Token: deixa claro que é o token de produção do vendedor de teste (Contas de teste).
+- README: tabela "Campo | O que é | Onde encontrar".
+
 ## 2.0.0
 
 Migração para o **Checkout Pro com a API de Orders**. A aplicação no painel do Mercado Pago deve estar como "API de Orders", com o webhook do evento **Order (Mercado Pago)** cadastrado.

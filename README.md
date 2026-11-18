@@ -45,18 +45,27 @@ O id do gateway é `mercadopagopro`. Ele convive com outros módulos do Mercado 
 
 ## Configuração
 
-| Campo | O que é |
-|---|---|
-| Modo | **Produção** ou **Teste**. Cada modo usa as próprias credenciais e o próprio secret. |
-| Access Token de produção / de teste | Em *Suas integrações › sua aplicação › Credenciais*. |
-| Secret do webhook (produção / teste) | Opcional. É a assinatura secreta da tela de Webhooks. Se preenchido, webhooks sem assinatura válida recebem 401. |
-| E-mail do comprador de teste | Opcional, só no modo Teste. Veja [Modo teste](#modo-teste). |
-| Campo do CPF/CNPJ | De onde vem o documento do comprador. *Automático*: o Tax ID; se ele não tiver um documento válido, o primeiro campo personalizado de cliente com "CPF", "CNPJ" ou "documento" no nome. Também é possível escolher só o *Tax ID* ou um campo personalizado específico. O documento só é enviado se for um CPF ou CNPJ válido. |
-| Parcelas máximas | De 1 a 24 (padrão 12). |
-| Descrição na fatura do cartão | `statement_descriptor`: o texto que aparece na fatura do cartão do comprador. Até 13 caracteres, em maiúsculas e sem acento. **Sempre enviado**: se o campo estiver vazio, usa o nome da empresa do WHMCS (normalizado); sem ele, `MERCADOPAGO`. |
-| 3DS | Autenticação 3DS no cartão (`config.online.transaction_security`), com `liability_shift: required`: a responsabilidade por chargeback de fraude passa ao emissor.<br>• **Só com risco de fraude** (padrão): `validation: on_fraud_risk`. O desafio 3DS aparece só quando o Mercado Pago vê risco.<br>• **Sempre**: `validation: always`. Todo pagamento com cartão passa por 3DS.<br>• **Desligado**: não envia `transaction_security`.<br>**Efeito na aprovação:** cartões ou emissores que não completam o 3DS, e compradores que desistem do desafio, são recusados. "Sempre" protege mais e aprova menos; "Só com risco de fraude" é o equilíbrio. |
-| Excluir boleto | Marcado por padrão: o boleto não aparece no Mercado Pago (`not_allowed_types: ticket`). |
-| Validade do link (horas) | Padrão 72 (`expiration_time`). Depois disso, ao abrir a fatura, uma order nova é criada. |
+A tela de configuração do gateway explica cada campo em uma linha, com link para o painel do Mercado Pago, e segue o idioma do admin (português ou inglês). No topo fica a URL do webhook, pronta para copiar.
+
+Links do painel: [Suas integrações](https://www.mercadopago.com.br/developers/panel/app) e [Contas de teste](https://www.mercadopago.com.br/developers/panel/app/test-users).
+
+| Campo | O que é | Onde encontrar |
+|---|---|---|
+| Modo | **Produção** ou **Teste**. Em Teste, valem só os campos de Teste. Padrão: Produção. | — |
+| Produção · Access Token | Token da sua aplicação. | Suas integrações › sua aplicação › Credenciais de produção › Access Token |
+| Produção · Secret do webhook | Opcional. Com ele, webhook sem assinatura válida recebe 401. | Suas integrações › sua aplicação › Webhooks › Configurar notificações (modo Produção) › Assinatura secreta (aparece depois de salvar a URL) |
+| Teste · Access Token | Access Token **de produção do vendedor de teste**, e não as "credenciais de teste" da aplicação (a API de Orders não aceita essas). | Contas de teste › vendedor de teste › Credenciais de produção |
+| Teste · Secret do webhook | Opcional, como o de produção. | Suas integrações › sua aplicação › Webhooks › Configurar notificações (modo Teste) › Assinatura secreta |
+| Teste · E-mail do comprador de teste | Opcional. Vai como e-mail do comprador só no modo Teste (veja [Modo teste](#modo-teste)). | Contas de teste › comprador de teste |
+| URL do webhook (topo da tela) | `https://SEU-WHMCS/modules/gateways/callback/mercadopagopro.php`, com o evento **Order (Mercado Pago)**, nos modos Produção e Teste. A aplicação deve estar com **Tipo de API = Orders**. | Suas integrações › sua aplicação › Webhooks › Configurar notificações; Tipo de API em sua aplicação › Editar dados |
+| 3DS | Autenticação 3DS no cartão (`config.online.transaction_security`), com `liability_shift: required`: a responsabilidade por chargeback de fraude passa ao emissor.<br>• **Só com risco de fraude** (padrão): `validation: on_fraud_risk`.<br>• **Sempre**: `validation: always`.<br>• **Desligado**: não envia.<br>**Efeito na aprovação:** cartões ou emissores que não completam o 3DS, e compradores que desistem do desafio, são recusados. "Sempre" protege mais e aprova menos. | Vai em cada order; vale para esta cobrança |
+| Parcelas máximas | De 1 a 24 (padrão 12). Limita as parcelas deste checkout. | Vai em cada order. Quem paga os juros segue a sua conta (Seu negócio › Custos) |
+| Excluir boleto | Marcado por padrão: o boleto não aparece neste checkout (`not_allowed_types: ticket`). | Vai em cada order |
+| Descrição na fatura do cartão | `statement_descriptor`: o texto na fatura do cartão do comprador. Até 13 caracteres, em maiúsculas e sem acento. **Sempre enviado**: se vazio, usa o nome da empresa do WHMCS (normalizado); sem ele, `MERCADOPAGO`. | Vai em cada order, no lugar do nome configurado na sua conta |
+| Campo do CPF/CNPJ | De onde vem o documento do comprador. *Automático* (padrão): o Tax ID; se ele não tiver um documento válido, o primeiro campo personalizado de cliente com "CPF", "CNPJ" ou "documento" no nome. Também é possível escolher só o *Tax ID* ou um campo específico. Só vai se for CPF ou CNPJ válido. | No WHMCS: Tax ID no perfil do cliente (Configurações › Impostos) ou Configurações › Campos personalizados do cliente |
+| Validade do link (horas) | De 1 a 720 (padrão 72, `expiration_time`). Depois disso, ao abrir a fatura, uma order nova é criada. | — |
+
+Os campos de 3DS, parcelas, boleto e descrição vão em cada order e valem para a cobrança. Configurações gerais da conta no Mercado Pago (como quem paga os juros do parcelamento) continuam valendo.
 
 ## Painel do Mercado Pago
 
@@ -116,8 +125,7 @@ Os dois usam `X-Idempotency-Key`. O Mercado Pago aceita reembolsos em até 180 d
 
 ## Modo teste
 
-1. Em *Suas integrações › sua aplicação*, use as **credenciais de teste** e escolha o modo **Teste** no gateway.
-   - A referência da API de Orders também menciona usar usuários de teste com credenciais de produção. Se a criação da order falhar com 401 no modo Teste, siga essa orientação.
+1. Em [Contas de teste](https://www.mercadopago.com.br/developers/panel/app/test-users), crie um **vendedor** e um **comprador** de teste. A API de Orders não aceita as "credenciais de teste" da aplicação: use o **Access Token de produção do vendedor de teste** no campo *Teste · Access Token* e escolha o modo **Teste** no gateway.
 2. Cadastre o webhook no modo **Teste** do painel (evento Order).
 3. Abra a fatura e pague numa **janela anônima**, sem estar logado no Mercado Pago, com um [cartão de teste](https://www.mercadopago.com.br/developers/pt/docs/checkout-pro-orders/integration-test/test-purchase-with-card). Por exemplo: Mastercard 5480 8328 0103 3311, CVV 123, validade 11/30, CPF 12345678909.
 4. O **nome do titular** define o resultado:
