@@ -71,7 +71,7 @@ return [
         }
         $b = new FakeBridge();
         eq(200, $make(gw(), new FakeHttp(['status' => 404, 'body' => ['message' => 'Payment not found']]), $b)->handle($get, [], '')['status']);
-        eq(['Ignorado: pagamento não consultado'], $b->results());
+        eq(['Ignorado: não consultado'], $b->results());
         eq('HTTP 404: Payment not found', $b->logs[0][1]['erro']);
     },
     'Sem token configurado: 200 e log, sem chamar a API' => function () {

@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Mercado Pago Checkout Pro para WHMCS 9.
+ * Mercado Pago Checkout Pro (API de Orders) para WHMCS 9.
  * Lógica em mercadopagopro/lib (MercadoPagoPro\*); aqui só as funções que o WHMCS chama.
  */
 
@@ -85,14 +85,21 @@ function mercadopagopro_config()
             'Size' => '13',
             'Description' => 'statement_descriptor, até 13 caracteres (maiúsculas, sem acento). Vazio: nome da empresa do WHMCS.',
         ],
+        'three_ds' => [
+            'FriendlyName' => '3DS',
+            'Type' => 'dropdown',
+            'Options' => ['on_fraud_risk' => 'Só com risco de fraude', 'always' => 'Sempre', 'off' => 'Desligado'],
+            'Default' => 'on_fraud_risk',
+            'Description' => 'Autenticação 3DS no cartão, com liability shift (chargeback por fraude fica com o emissor). "Sempre" protege mais e aprova menos; "Desligado" não pede 3DS.',
+        ],
         'exclude_ticket' => ['FriendlyName' => 'Excluir boleto', 'Type' => 'yesno', 'Default' => 'on', 'Description' => 'Não oferecer boleto no Mercado Pago.'],
         'link_hours' => ['FriendlyName' => 'Validade do link (horas)', 'Type' => 'text', 'Size' => '4', 'Default' => '72', 'Description' => 'De 1 a 720.'],
         // Nota exibida no topo da configuração do gateway.
         'UsageNotes' => [
             'Type' => 'System',
             'Value' => 'URL do webhook: <code style="user-select:all">' . $webhook . '</code>. '
-                . 'Cadastre no Mercado Pago (Suas integrações › sua aplicação › Webhooks, evento Pagamentos) e copie a assinatura secreta para o campo Secret do webhook. '
-                . 'Cada link de pagamento também envia essa URL (notification_url).',
+                . 'No Mercado Pago (Suas integrações › sua aplicação), a aplicação deve usar a API de Orders. Em Webhooks, cadastre essa URL com o evento <b>Order (Mercado Pago)</b> '
+                . '(nos modos Teste e Produção) e copie a assinatura secreta para o campo Secret do webhook do modo correspondente.',
         ],
     ];
 }

@@ -13,6 +13,9 @@ interface Data
     /** Data de cadastro do cliente (Y-m-d ou Y-m-d H:i:s), '' se não houver. */
     public function clientCreated(int $clientId): string;
 
+    /** Data (Y-m-d H:i:s) da última fatura paga do cliente, sem contar $exceptInvoiceId; '' se nenhuma. */
+    public function lastPaidInvoice(int $clientId, int $exceptInvoiceId): string;
+
     /** Valor de um campo personalizado do cliente, '' se não houver. */
     public function customFieldValue(int $clientId, int $fieldId): string;
 

@@ -41,20 +41,25 @@ final class Gateway
         $title = ($en ? 'Invoice #' : 'Fatura #') . $invoiceId;
         try {
             $client = new Client($c->token, $this->http);
-            $payload = Payloads::preference($invoiceId, $amount, $systemUrl, $c, $now, $title, $this->payer($params, $c), $this->lines($invoiceId));
+            [$payer, $info] = $this->buyer($params, $c, $invoiceId);
+            $payload = Payloads::order($invoiceId, $amount, $systemUrl, $c, $title, $payer, $this->lines($invoiceId), $info);
             $key = Payloads::fingerprint($c, $payload);
             $url = (new PreferenceCache($this->store))->link($invoiceId, $amount, $c, $key, $now, static function () use ($client, $payload) {
-                return $client->createPreference($payload, Client::uuid());
+                return $client->createOrder($payload, Client::uuid());
             });
         } catch (ApiException $e) {
-            $this->bridge->log($c->name, ['fatura' => (string) $invoiceId, 'modo' => $c->mode(), 'erro' => $e->getMessage()], 'Erro ao criar a preferência');
+            $this->bridge->log($c->name, ['fatura' => (string) $invoiceId, 'modo' => $c->mode(), 'erro' => $e->getMessage()], 'Erro ao criar a order');
             return self::notice($en ? 'We could not generate the Mercado Pago payment link right now. Please try again in a few minutes.' : 'Não foi possível gerar o link de pagamento do Mercado Pago agora. Tente de novo em alguns minutos.');
         }
         $label = $en ? 'Pay with Mercado Pago' : 'Pagar com Mercado Pago';
         return '<a href="' . htmlspecialchars($url, ENT_QUOTES, 'UTF-8') . '" class="btn btn-primary mercadopagopro-pay" rel="noopener">' . htmlspecialchars($label, ENT_QUOTES, 'UTF-8') . '</a>';
     }
 
-    /** @return array{status: string, rawdata: array<mixed>, transid?: string} formato do _refund do WHMCS */
+    /**
+     * _refund do WHMCS. transid ORD… = order (POST /v1/orders/{id}/refund: total sem corpo, parcial
+     * com o pagamento da order); transid numérico = pagamento de link antigo (/v1/payments/{id}/refunds).
+     * @return array{status: string, rawdata: array<mixed>, transid?: string}
+     */
     public function refund(array $params): array
     {
         $c = Config::fromParams($params);
@@ -64,9 +69,13 @@ final class Gateway
             return ['status' => 'error', 'rawdata' => ['erro' => 'valor inválido']];
         }
         try {
-            $r = (new Client($c->token, $this->http))->refund($transId, $amount, Client::uuid());
+            $client = new Client($c->token, $this->http);
+            if (Module::isOrderId($transId)) {
+                return $this->refundOrder($client, $transId, $amount);
+            }
+            $r = $client->refund($transId, $amount, Client::uuid());
         } catch (ApiException $e) {
-            return ['status' => $e->status >= 400 && $e->status < 500 ? 'declined' : 'error', 'rawdata' => ['pagamento' => $transId, 'erro' => $e->getMessage()]];
+            return ['status' => $e->status >= 400 && $e->status < 500 ? 'declined' : 'error', 'rawdata' => ['transacao' => $transId, 'erro' => $e->getMessage()]];
         }
         $raw = ['pagamento' => $transId, 'reembolso' => (string) ($r['id'] ?? ''), 'status' => (string) ($r['status'] ?? ''), 'valor' => (string) ($r['amount'] ?? $amount)];
         $status = (string) ($r['status'] ?? '');
@@ -77,20 +86,53 @@ final class Gateway
         return ['status' => $status === '' ? 'error' : 'declined', 'rawdata' => $raw];
     }
 
-    /** payer da preferência. Falha ao ler dados extras do WHMCS não impede o link. */
-    private function payer(array $params, Config $c): array
+    private function refundOrder(Client $client, string $orderId, float $amount): array
+    {
+        $order = $client->getOrder($orderId);
+        $paid = Processor::orderPaid($order);
+        $pays = Processor::orderPayments($order);
+        if ($paid > 0 && $amount > $paid + 0.001) {
+            return ['status' => 'declined', 'rawdata' => ['order' => $orderId, 'erro' => 'valor maior que o pago']];
+        }
+        $partial = $paid > 0 && $amount < $paid - 0.001;
+        if ($partial && empty($pays[0]['id'])) {
+            return ['status' => 'declined', 'rawdata' => ['order' => $orderId, 'erro' => 'order sem pagamento para reembolso parcial']];
+        }
+        $r = $partial
+            ? $client->refundOrder($orderId, Client::uuid(), (string) $pays[0]['id'], $amount)
+            : $client->refundOrder($orderId, Client::uuid());
+        $refunds = (array) ($r['transactions']['refunds'] ?? []);
+        $last = is_array(end($refunds)) ? end($refunds) : [];
+        $raw = ['order' => $orderId, 'tipo' => $partial ? 'parcial' : 'total', 'status' => (string) ($r['status'] ?? ''), 'status_detail' => (string) ($r['status_detail'] ?? ''),
+            'reembolso' => (string) ($last['id'] ?? ''), 'valor' => (string) ($last['amount'] ?? Payloads::money($amount))];
+        if (in_array((string) ($r['status'] ?? ''), ['refunded', 'processed'], true)) {
+            return ['status' => 'success', 'transid' => (string) ($last['id'] ?? $orderId), 'rawdata' => $raw];
+        }
+        return ['status' => 'declined', 'rawdata' => $raw];
+    }
+
+    /**
+     * payer e additional_info da order. Falha ao ler dados extras do WHMCS não impede o link.
+     * @return array{0: array, 1: array}
+     */
+    private function buyer(array $params, Config $c, int $invoiceId): array
     {
         $client = (array) ($params['clientdetails'] ?? []);
         $clientId = (int) ($client['userid'] ?? $client['id'] ?? 0);
         $doc = '';
         $created = '';
+        $last = '';
         try {
             $doc = Buyer::document($client, $c->docField, $this->data);
-            $created = $clientId > 0 ? $this->data->clientCreated($clientId) : '';
+            if ($clientId > 0) {
+                $created = $this->data->clientCreated($clientId);
+                $last = $this->data->lastPaidInvoice($clientId, $invoiceId);
+            }
         } catch (\Throwable $e) {
-            // segue sem documento e sem data de cadastro
+            // segue sem documento e sem histórico
         }
-        return Buyer::payer($client, $c->payerEmail((string) ($client['email'] ?? '')), $doc, $created);
+        $info = $clientId > 0 ? Buyer::additionalInfo($created, $last) : [];
+        return [Buyer::orderPayer($client, $c->payerEmail((string) ($client['email'] ?? '')), $doc), $info];
     }
 
     private function lines(int $invoiceId): string

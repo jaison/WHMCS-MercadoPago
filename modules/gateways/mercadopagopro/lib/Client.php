@@ -23,10 +23,32 @@ final class Client
         $this->http = $http;
     }
 
-    /** @return array<mixed> preferência criada (id, init_point…) */
-    public function createPreference(array $payload, string $idempotencyKey): array
+    /** @return array<mixed> order criada (id, status, checkout_url…) */
+    public function createOrder(array $payload, string $idempotencyKey): array
     {
-        return $this->call('POST', '/checkout/preferences', $payload, $idempotencyKey);
+        return $this->call('POST', '/v1/orders', $payload, $idempotencyKey);
+    }
+
+    /** @return array<mixed> */
+    public function getOrder(string $id): array
+    {
+        if (!Module::isOrderId($id)) {
+            throw new ApiException(400, 'id de order inválido');
+        }
+        return $this->call('GET', '/v1/orders/' . $id);
+    }
+
+    /**
+     * Reembolso de order: total sem corpo; parcial com uma transação (id do pagamento da order).
+     * @return array<mixed>
+     */
+    public function refundOrder(string $orderId, string $idempotencyKey, ?string $paymentId = null, ?float $amount = null): array
+    {
+        if (!Module::isOrderId($orderId)) {
+            throw new ApiException(400, 'id de order inválido');
+        }
+        $body = $paymentId !== null && $amount !== null ? Payloads::orderRefund($paymentId, $amount) : null;
+        return $this->call('POST', '/v1/orders/' . $orderId . '/refund', $body, $idempotencyKey);
     }
 
     /** @return array<mixed> */
@@ -54,7 +76,7 @@ final class Client
             'Authorization' => 'Bearer ' . $this->token,
             'Accept' => 'application/json',
         ];
-        if ($body !== null) {
+        if ($body !== null || $method === 'POST') {
             $headers['Content-Type'] = 'application/json';
         }
         if ($idempotencyKey !== '') {
@@ -66,10 +88,42 @@ final class Client
             return $res['body'];
         }
         $msg = $status === 0 ? 'falha de rede' : 'HTTP ' . $status;
-        if (is_array($res['body']) && isset($res['body']['message']) && is_string($res['body']['message'])) {
-            $msg .= ': ' . self::redact(mb_substr(str_replace($this->token, '***', $res['body']['message']), 0, 200));
+        $detail = self::errorText($res['body']);
+        if ($detail !== '') {
+            $msg .= ': ' . self::redact(mb_substr(str_replace($this->token, '***', $detail), 0, 400));
         }
         throw new ApiException($status, $msg);
+    }
+
+    /**
+     * Texto do erro: "message" (API de pagamentos) e/ou "errors[]" {code, message, details[]}
+     * (API de Orders).
+     */
+    public static function errorText($body): string
+    {
+        if (!is_array($body)) {
+            return '';
+        }
+        $parts = [];
+        if (isset($body['message']) && is_string($body['message'])) {
+            $parts[] = $body['message'];
+        }
+        foreach (array_slice((array) ($body['errors'] ?? []), 0, 3) as $e) {
+            if (!is_array($e)) {
+                continue;
+            }
+            $t = trim((string) ($e['code'] ?? '') . ' ' . (string) ($e['message'] ?? ''));
+            $details = array_filter(array_map(static function ($d) {
+                return is_scalar($d) ? (string) $d : '';
+            }, array_slice((array) ($e['details'] ?? []), 0, 3)));
+            if ($details) {
+                $t .= ' (' . implode('; ', $details) . ')';
+            }
+            if ($t !== '') {
+                $parts[] = $t;
+            }
+        }
+        return implode(' | ', $parts);
     }
 
     /** Tira da mensagem da API o que pode ser dado pessoal ecoado (e-mail, documento, telefone). */

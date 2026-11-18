@@ -72,6 +72,121 @@ final class Processor
         ];
     }
 
+    /**
+     * Status de order: processed/accredited → paid; failed, canceled → failed; refunded,
+     * charged_back e processed/partially_refunded → reversed; o resto (created, processing,
+     * action_required) → pending.
+     */
+    public static function classifyOrder(array $o): string
+    {
+        $status = (string) ($o['status'] ?? '');
+        $detail = (string) ($o['status_detail'] ?? '');
+        if ($status === 'processed') {
+            return $detail === 'accredited' ? 'paid' : 'reversed';
+        }
+        if ($status === 'refunded' || $status === 'charged_back') {
+            return 'reversed';
+        }
+        if ($status === 'failed' || $status === 'canceled') {
+            return 'failed';
+        }
+        return in_array($status, ['created', 'processing', 'action_required'], true) ? 'pending' : 'unknown';
+    }
+
+    /** Pagamentos aprovados da order. @return array<int, array<mixed>> */
+    public static function orderPayments(array $o): array
+    {
+        $out = [];
+        foreach ((array) ($o['transactions']['payments'] ?? []) as $pay) {
+            if (is_array($pay) && ($pay['status'] ?? '') === 'processed' && in_array($pay['status_detail'] ?? 'accredited', ['accredited', 'partially_refunded'], true)) {
+                $out[] = $pay;
+            }
+        }
+        return $out;
+    }
+
+    /** Valor pago: soma dos pagamentos aprovados (paid_amount, senão amount); sem eles, total_paid_amount. */
+    public static function orderPaid(array $o): float
+    {
+        $sum = 0.0;
+        foreach (self::orderPayments($o) as $pay) {
+            $v = $pay['paid_amount'] ?? $pay['amount'] ?? null;
+            if (is_numeric($v)) {
+                $sum += (float) $v;
+            }
+        }
+        if ($sum <= 0 && is_numeric($o['total_paid_amount'] ?? null)) {
+            $sum = (float) $o['total_paid_amount'];
+        }
+        return round($sum, 2);
+    }
+
+    /** Campos da order que vão ao Log de Gateways (sem pagador, sem token). */
+    public static function orderSummary(array $o, float $fee = 0.0): array
+    {
+        $pays = self::orderPayments($o);
+        $first = $pays[0] ?? ((array) ($o['transactions']['payments'][0] ?? []));
+        $pm = (array) ($first['payment_method'] ?? []);
+        return [
+            'order' => (string) ($o['id'] ?? ''),
+            'status' => (string) ($o['status'] ?? ''),
+            'status_detail' => (string) ($o['status_detail'] ?? ''),
+            'valor' => (string) self::orderPaid($o),
+            'moeda' => (string) ($o['currency'] ?? ''),
+            'taxa' => (string) $fee,
+            'metodo' => trim((string) ($pm['type'] ?? '') . '/' . (string) ($pm['id'] ?? ''), '/'),
+            'pagamento' => (string) ($first['id'] ?? ''),
+            'pagamento_ref' => (string) ($first['reference_id'] ?? ''),
+            'fatura' => (string) ($o['external_reference'] ?? ''),
+        ];
+    }
+
+    /**
+     * Baixa de uma order já consultada em GET /v1/orders/{id}. transid = id da order (é o que o
+     * reembolso usa). $fee: busca a taxa (consulta auxiliar); falha nela vira taxa 0.
+     * @param callable(array): float|null $fee
+     */
+    public function settleOrder(array $o, ?callable $fee = null): string
+    {
+        $name = $this->config->name;
+        $id = (string) ($o['id'] ?? '');
+        if (!Module::isOrderId($id)) {
+            $this->bridge->log($name, self::orderSummary($o), 'Ignorado: order sem id');
+            return self::IGNORED;
+        }
+        $kind = self::classifyOrder($o);
+        if ($kind === 'reversed') {
+            $this->bridge->log($name, self::orderSummary($o), 'Estorno ou contestação (sem baixa automática)');
+            return self::LOGGED;
+        }
+        if ($kind !== 'paid') {
+            return self::IGNORED;
+        }
+        if (($o['currency'] ?? 'BRL') !== 'BRL') {
+            $this->bridge->log($name, self::orderSummary($o), 'Ignorado: moeda diferente de BRL');
+            return self::IGNORED;
+        }
+        $ref = (string) ($o['external_reference'] ?? '');
+        $amount = self::orderPaid($o);
+        if (!preg_match('/^\d{1,10}$/', $ref) || $amount <= 0) {
+            $this->bridge->log($name, self::orderSummary($o), 'Ignorado: sem fatura ou valor');
+            return self::IGNORED;
+        }
+        $invoiceId = $this->bridge->checkInvoice((int) $ref, $name);
+        $this->bridge->checkTransaction($id);
+        $taxa = 0.0;
+        if ($fee !== null) {
+            try {
+                $taxa = round(max(0.0, (float) $fee($o)), 2);
+            } catch (\Throwable $e) {
+                $taxa = 0.0;
+            }
+        }
+        $this->bridge->addPayment($invoiceId, $id, $amount, $taxa);
+        $this->bridge->log($name, self::orderSummary($o, $taxa), 'Successful');
+        return self::PAID;
+    }
+
     public function settle(array $p): string
     {
         $name = $this->config->name;

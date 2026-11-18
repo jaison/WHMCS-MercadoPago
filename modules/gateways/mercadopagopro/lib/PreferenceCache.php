@@ -3,7 +3,7 @@
 namespace MercadoPagoPro;
 
 /**
- * Link de pagamento de uma fatura: reaproveita a preferência guardada enquanto o valor e a chave
+ * Link de pagamento de uma fatura (order do Checkout Pro; na 1.x, preferência): reaproveita o guardado enquanto o valor e a chave
  * (modo + impressão digital do payload, Payloads::fingerprint) forem os mesmos e faltar mais de
  * MARGIN segundos para expirar; senão cria outra e guarda. A chave fica na coluna "mode".
  */
@@ -21,7 +21,7 @@ final class PreferenceCache
     }
 
     /**
-     * @param callable(): array $create devolve a preferência criada na API (id, init_point)
+     * @param callable(): array $create devolve a order criada na API (id, checkout_url)
      * @return string init_point
      */
     public function link(int $invoiceId, float $amount, Config $c, string $key, int $now, callable $create): string
@@ -33,12 +33,12 @@ final class PreferenceCache
             return $row['init_point'];
         }
         $pref = $create();
-        $url = (string) ($pref['init_point'] ?? '');
+        $url = (string) ($pref['checkout_url'] ?? ($pref['init_point'] ?? ''));
         if ($url === '') {
             $url = (string) ($pref['sandbox_init_point'] ?? '');
         }
         if ($url === '' || strpos($url, 'https://') !== 0) {
-            throw new ApiException(-1, 'preferência sem init_point');
+            throw new ApiException(-1, 'resposta sem checkout_url');
         }
         $this->store->save($invoiceId, $key, $amountText, (string) ($pref['id'] ?? ''), $url, $now + $c->hours * 3600, $now);
         return $url;

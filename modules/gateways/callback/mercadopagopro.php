@@ -11,6 +11,7 @@ require_once __DIR__ . '/../../../includes/invoicefunctions.php';
 require_once __DIR__ . '/../mercadopagopro/lib/Autoload.php';
 
 use MercadoPagoPro\ApiException;
+use MercadoPagoPro\CapsuleStore;
 use MercadoPagoPro\Callback;
 use MercadoPagoPro\Client;
 use MercadoPagoPro\Config;
@@ -44,7 +45,7 @@ if ($systemUrl === '') {
     $systemUrl = (string) \WHMCS\Config\Setting::getValue('SystemURL');
 }
 
-$callback = new Callback($config, $client, new WhmcsBridge(), $systemUrl);
+$callback = new Callback($config, $client, new WhmcsBridge(), $systemUrl, new CapsuleStore());
 
 // Retorno do cliente: se o WHMCS encerrar o script no meio (transação já registrada pelo
 // webhook, por exemplo), ainda assim manda o cliente para a fatura.

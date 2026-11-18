@@ -6,6 +6,7 @@ namespace MercadoPagoPro;
  * Notificação recebida no callback, nos dois formatos:
  * - Webhook: ?type=payment&data.id=X (o PHP entrega como data_id) e corpo JSON {type, action, data: {id}};
  * - IPN: ?topic=payment&id=X.
+ * Tópicos tratados: order (id ORD…, API de Orders) e payment (id numérico, links antigos).
  * $idFromQuery é o id que entra no manifesto da assinatura (o da URL).
  */
 final class Notification
@@ -46,6 +47,12 @@ final class Notification
             $n->idFromQuery = $qId;
         }
         return $n;
+    }
+
+    /** Order (API de Orders): type=order e id ORD… alfanumérico. */
+    public function isOrder(): bool
+    {
+        return $this->topic === 'order' && Module::isOrderId($this->id);
     }
 
     /** Só pagamentos com id numérico são processados; o resto é ignorado com 200. */

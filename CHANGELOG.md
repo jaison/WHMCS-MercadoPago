@@ -1,5 +1,28 @@
 # Changelog
 
+## 2.0.0
+
+Migração para o **Checkout Pro com a API de Orders**. A aplicação no painel do Mercado Pago deve estar como "API de Orders", com o webhook do evento **Order (Mercado Pago)** cadastrado.
+
+- Link de pagamento criado como order (`POST /v1/orders`: `type online`, `processing_mode manual`, valores em texto). Redireciona para o `checkout_url`.
+- `payer` no formato de Orders (`first_name`, `last_name`, telefone, CPF/CNPJ, endereço com bairro e cidade) e `additional_info` com cadastro, primeira compra e última compra.
+- `config`:
+  - `statement_descriptor` (sempre preenchido);
+  - URLs de retorno e `auto_return`;
+  - parcelas e exclusão do boleto (`not_allowed_types`);
+  - novo seletor "3DS": Desligado, Só com risco de fraude (padrão) ou Sempre. Envia `validation` (`on_fraud_risk` ou `always`) com `liability_shift: required`.
+- Baixa:
+  - pela order (`processed`/`accredited`): valor = soma dos pagamentos aprovados;
+  - taxa buscada no pagamento de referência;
+  - transid = id da order;
+  - funciona pelo retorno do cliente e pelo webhook `order` (id alfanumérico, em minúsculas no manifesto da assinatura).
+- Reembolso de order: total (sem corpo) ou parcial (pagamento da order) em `POST /v1/orders/{id}/refund`. Transações numéricas da 1.x continuam reembolsadas por `/v1/payments`.
+- Compatibilidade:
+  - notificações `payment` de links da 1.x continuam dando baixa;
+  - quando a fatura tem order, elas são ignoradas, para não registrar o pagamento duas vezes.
+- Erros da API de Orders (`errors[]` com code, message e details) vão legíveis ao Log de Gateways, com o mesmo mascaramento de dados pessoais.
+- Links guardados das versões anteriores são refeitos como order.
+
 ## 1.1.0
 
 Mais dados na preferência, para a medição de qualidade da integração do Mercado Pago:

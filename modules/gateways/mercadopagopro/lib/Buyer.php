@@ -3,7 +3,7 @@
 namespace MercadoPagoPro;
 
 /**
- * Dados do comprador para a preferência (payer), a partir de clientdetails do WHMCS.
+ * Dados do comprador para a order (payer, additional_info), a partir de clientdetails do WHMCS.
  * Tudo vai só ao Mercado Pago; nada disto é registrado em log.
  */
 final class Buyer
@@ -141,22 +141,22 @@ final class Buyer
     }
 
     /**
-     * Objeto payer da preferência. $email já vem decidido pelo modo (Config::payerEmail).
-     * @param string $created data de cadastro do cliente ('' se não houver)
+     * payer da order (API de Orders): first_name, last_name, email, phone, identification, address.
+     * A API exige email quando payer é enviado; sem e-mail (modo Teste sem comprador de teste) não vai payer.
      */
-    public static function payer(array $client, string $email, string $doc, string $created): array
+    public static function orderPayer(array $client, string $email, string $doc): array
     {
-        $p = [];
+        if ($email === '') {
+            return [];
+        }
+        $p = ['email' => $email];
         $first = trim((string) ($client['firstname'] ?? ''));
         $last = trim((string) ($client['lastname'] ?? ''));
         if ($first !== '') {
-            $p['name'] = mb_substr($first, 0, 60);
+            $p['first_name'] = mb_substr($first, 0, 60);
         }
         if ($last !== '') {
-            $p['surname'] = mb_substr($last, 0, 60);
-        }
-        if ($email !== '') {
-            $p['email'] = $email;
+            $p['last_name'] = mb_substr($last, 0, 60);
         }
         if (($ph = self::phone($client)) !== null) {
             $p['phone'] = $ph;
@@ -165,12 +165,44 @@ final class Buyer
             $p['identification'] = $id;
         }
         if (($ad = self::address($client)) !== null) {
+            $hood = trim((string) ($client['address2'] ?? ''));
+            $city = trim((string) ($client['city'] ?? ''));
+            if ($hood !== '') {
+                $ad['neighborhood'] = mb_substr($hood, 0, 60);
+            }
+            if ($city !== '') {
+                $ad['city'] = mb_substr($city, 0, 60);
+            }
             $p['address'] = $ad;
         }
-        $ts = $created !== '' && strpos($created, '0000') !== 0 ? strtotime($created) : false;
-        if ($ts !== false && $ts > 0) {
-            $p['date_created'] = Payloads::date($ts);
-        }
         return $p;
+    }
+
+    /**
+     * additional_info da order (chaves "payer.*"): data de cadastro, primeira compra online e data
+     * da última compra. $lastPaid = data da última fatura paga antes desta ('' = nenhuma).
+     */
+    public static function additionalInfo(string $created, string $lastPaid): array
+    {
+        $info = [];
+        $ts = self::time($created);
+        if ($ts !== null) {
+            $info['payer.registration_date'] = Payloads::date($ts);
+        }
+        $last = self::time($lastPaid);
+        $info['payer.is_first_purchase_online'] = $last === null;
+        if ($last !== null) {
+            $info['payer.last_purchase'] = Payloads::date($last);
+        }
+        return $info;
+    }
+
+    private static function time(string $d): ?int
+    {
+        if ($d === '' || strpos($d, '0000') === 0) {
+            return null;
+        }
+        $ts = strtotime($d);
+        return $ts !== false && $ts > 0 ? $ts : null;
     }
 }

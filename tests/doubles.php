@@ -153,6 +153,8 @@ final class FakeData implements Data
     public $created = [50 => '2021-03-25'];
     /** @var array<int, string> */
     public $fields = [3 => 'Origem', 7 => 'CPF/CNPJ'];
+    /** @var array<int, string> última fatura paga por cliente */
+    public $lastPaid = [50 => '2026-10-02 14:30:00'];
     /** @var array<string, string> "cliente:campo" => valor */
     public $values = [];
 
@@ -164,6 +166,11 @@ final class FakeData implements Data
     public function clientCreated(int $clientId): string
     {
         return $this->created[$clientId] ?? '';
+    }
+
+    public function lastPaidInvoice(int $clientId, int $exceptInvoiceId): string
+    {
+        return $this->lastPaid[$clientId] ?? '';
     }
 
     public function customFieldValue(int $clientId, int $fieldId): string
@@ -190,8 +197,35 @@ function client(array $over = []): array
         'country' => 'BR',
         'postcode' => '89000-000',
         'address1' => 'Rua das Flores, 100',
+        'address2' => 'Centro',
+        'city' => 'Blumenau',
         'tax_id' => '529.982.247-25',
         'language' => '',
         'customfields' => [],
+    ];
+}
+
+/** Order como a API devolve em GET /v1/orders/{id} (paga). */
+function order(array $over = []): array
+{
+    return $over + [
+        'id' => 'ORDTST01KS5AJ6HTK2HRQ3XJ3C2JCKP9',
+        'type' => 'online',
+        'status' => 'processed',
+        'status_detail' => 'accredited',
+        'currency' => 'BRL',
+        'external_reference' => '501',
+        'total_amount' => '59.90',
+        'total_paid_amount' => '59.90',
+        'payer' => ['email' => 'comprador@example.com'],
+        'transactions' => ['payments' => [[
+            'id' => 'PAY01KS5AJ6HTK2HRQ3XJ3C2JCKPA',
+            'reference_id' => '190343815810',
+            'amount' => '59.90',
+            'paid_amount' => '59.90',
+            'status' => 'processed',
+            'status_detail' => 'accredited',
+            'payment_method' => ['id' => 'master', 'type' => 'credit_card', 'installments' => 1],
+        ]]],
     ];
 }

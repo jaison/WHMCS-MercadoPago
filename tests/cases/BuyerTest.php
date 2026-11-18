@@ -38,11 +38,4 @@ return [
         eq(null, Buyer::address(client(['postcode' => '123'])));
         eq(null, Buyer::address(client(['country' => 'PT'])));
     },
-    'payer: só o que existe e é válido; data de cadastro em ISO 8601' => function () {
-        eq(['name' => 'Ana'], Buyer::payer(['firstname' => 'Ana', 'country' => 'US'], '', '', '0000-00-00'));
-        $p = Buyer::payer(client(), 'x@example.com', 'inválido', '2021-03-25 10:00:00');
-        ok(!isset($p['identification']));
-        eq('2021-03-25T10:00:00.000-03:00', $p['date_created']);
-        eq('x@example.com', $p['email']);
-    },
 ];

@@ -17,6 +17,12 @@ final class WhmcsData implements Data
         return (string) Capsule::table('tblclients')->where('id', $clientId)->value('datecreated');
     }
 
+    public function lastPaidInvoice(int $clientId, int $exceptInvoiceId): string
+    {
+        return (string) Capsule::table('tblinvoices')->where('userid', $clientId)->where('status', 'Paid')
+            ->where('id', '!=', $exceptInvoiceId)->where('total', '>', 0)->max('datepaid');
+    }
+
     public function customFieldValue(int $clientId, int $fieldId): string
     {
         return (string) Capsule::table('tblcustomfieldsvalues')->where('fieldid', $fieldId)->where('relid', $clientId)->value('value');

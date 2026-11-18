@@ -26,6 +26,8 @@ final class Config
     public $name;
     /** @var string e-mail do comprador de teste (só no modo Teste) */
     public $testPayerEmail;
+    /** @var string 3DS (config.online.transaction_security.validation): off, on_fraud_risk ou always */
+    public $threeDs;
     /** @var string origem do CPF/CNPJ: '' automático, 'tax_id' ou 'cf:<id>' */
     public $docField;
 
@@ -47,6 +49,8 @@ final class Config
         }
         // Checkbox do WHMCS: "on" marcado; vazio desmarcado. Sem valor salvo (nunca configurado) = marcado.
         $c->excludeTicket = !array_key_exists('exclude_ticket', $p) || in_array((string) $p['exclude_ticket'], ['on', '1', 'yes'], true);
+        $t3 = (string) ($p['three_ds'] ?? '');
+        $c->threeDs = in_array($t3, ['off', 'on_fraud_risk', 'always'], true) ? $t3 : 'on_fraud_risk';
         $h = (int) ($p['link_hours'] ?? 0);
         $c->hours = $h >= 1 && $h <= 720 ? $h : 72;
         $c->name = (string) ($p['name'] ?? $p['paymentmethod'] ?? Module::ID);
