@@ -67,9 +67,16 @@ final class Client
         }
         $msg = $status === 0 ? 'falha de rede' : 'HTTP ' . $status;
         if (is_array($res['body']) && isset($res['body']['message']) && is_string($res['body']['message'])) {
-            $msg .= ': ' . mb_substr(str_replace($this->token, '***', $res['body']['message']), 0, 200);
+            $msg .= ': ' . self::redact(mb_substr(str_replace($this->token, '***', $res['body']['message']), 0, 200));
         }
         throw new ApiException($status, $msg);
+    }
+
+    /** Tira da mensagem da API o que pode ser dado pessoal ecoado (e-mail, documento, telefone). */
+    public static function redact(string $s): string
+    {
+        $s = preg_replace('/[^\s@:,;"\'<>]+@[^\s@:,;"\'<>]+/', '***', $s) ?? '';
+        return preg_replace('/\d[\d.\-\/ ]{6,}\d/', '***', $s) ?? '';
     }
 
     /** UUID v4 para X-Idempotency-Key. */

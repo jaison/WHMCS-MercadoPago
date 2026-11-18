@@ -26,6 +26,8 @@ final class Config
     public $name;
     /** @var string e-mail do comprador de teste (só no modo Teste) */
     public $testPayerEmail;
+    /** @var string origem do CPF/CNPJ: '' automático, 'tax_id' ou 'cf:<id>' */
+    public $docField;
 
     public static function fromParams(array $p): self
     {
@@ -35,7 +37,14 @@ final class Config
         $c->secret = trim((string) ($c->test ? ($p['secret_test'] ?? '') : ($p['secret_live'] ?? '')));
         $n = (int) ($p['installments'] ?? 0);
         $c->installments = $n >= 1 && $n <= 24 ? $n : 12;
+        // Sempre preenchida: a configurada; senão o nome da empresa do WHMCS; senão um padrão.
         $c->descriptor = self::descriptor((string) ($p['descriptor'] ?? ''));
+        if ($c->descriptor === '') {
+            $c->descriptor = self::descriptor((string) ($p['companyname'] ?? ''));
+        }
+        if ($c->descriptor === '') {
+            $c->descriptor = Module::DEFAULT_DESCRIPTOR;
+        }
         // Checkbox do WHMCS: "on" marcado; vazio desmarcado. Sem valor salvo (nunca configurado) = marcado.
         $c->excludeTicket = !array_key_exists('exclude_ticket', $p) || in_array((string) $p['exclude_ticket'], ['on', '1', 'yes'], true);
         $h = (int) ($p['link_hours'] ?? 0);
@@ -43,6 +52,8 @@ final class Config
         $c->name = (string) ($p['name'] ?? $p['paymentmethod'] ?? Module::ID);
         $t = trim((string) ($p['test_payer_email'] ?? ''));
         $c->testPayerEmail = filter_var($t, FILTER_VALIDATE_EMAIL) ? $t : '';
+        $d = (string) ($p['doc_field'] ?? '');
+        $c->docField = $d === 'tax_id' || preg_match('/^cf:\d{1,10}$/', $d) ? $d : '';
         return $c;
     }
 
@@ -63,10 +74,17 @@ final class Config
         return filter_var($clientEmail, FILTER_VALIDATE_EMAIL) ? $clientEmail : '';
     }
 
-    /** Descrição na fatura do cartão: letras, números e espaço, até 22 caracteres. */
+    /**
+     * Descrição na fatura do cartão (statement_descriptor): até 13 caracteres (limite do Mercado
+     * Pago no Brasil), maiúsculas, sem acento, só letras, números e espaço.
+     */
     public static function descriptor(string $s): string
     {
-        $s = preg_replace('/[^A-Za-z0-9 ]+/', '', $s) ?? '';
-        return trim(substr(trim(preg_replace('/\s+/', ' ', $s) ?? ''), 0, 22));
+        $map = ['á' => 'a', 'à' => 'a', 'â' => 'a', 'ã' => 'a', 'ä' => 'a', 'é' => 'e', 'è' => 'e', 'ê' => 'e', 'ë' => 'e',
+            'í' => 'i', 'ì' => 'i', 'î' => 'i', 'ï' => 'i', 'ó' => 'o', 'ò' => 'o', 'ô' => 'o', 'õ' => 'o', 'ö' => 'o',
+            'ú' => 'u', 'ù' => 'u', 'û' => 'u', 'ü' => 'u', 'ç' => 'c', 'ñ' => 'n'];
+        $s = strtr(mb_strtolower($s, 'UTF-8'), $map);
+        $s = strtoupper(preg_replace('/[^a-z0-9 ]+/', '', $s) ?? '');
+        return trim(substr(trim(preg_replace('/\s+/', ' ', $s) ?? ''), 0, 13));
     }
 }

@@ -1,6 +1,7 @@
 <?php
 
 use MercadoPagoPro\Bridge;
+use MercadoPagoPro\Data;
 use MercadoPagoPro\Http;
 use MercadoPagoPro\Store;
 
@@ -138,7 +139,59 @@ function payment(array $over = []): array
 function assertCleanLogs(FakeBridge $b): void
 {
     $all = json_encode($b->logs, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-    foreach (['APP_USR-live-token', 'TEST-test-token', 'segredo', 'comprador@example.com', '12345678909'] as $s) {
+    foreach (['APP_USR-live-token', 'TEST-test-token', 'segredo', 'comprador@example.com', '12345678909', 'cliente@example.com', '52998224725', '529.982.247-25', '999998888', 'Rua das Flores'] as $s) {
         ok(strpos((string) $all, $s) === false, 'log contém dado sensível: ' . $s);
     }
+}
+
+/** Dados extras do WHMCS: linhas da fatura, cadastro do cliente e campos personalizados. */
+final class FakeData implements Data
+{
+    /** @var array<int, string[]> */
+    public $lines = [501 => ["Plano VPS 2 GB\n(18/11/2026 - 17/12/2026)", 'Desconto 5OFF']];
+    /** @var array<int, string> */
+    public $created = [50 => '2021-03-25'];
+    /** @var array<int, string> */
+    public $fields = [3 => 'Origem', 7 => 'CPF/CNPJ'];
+    /** @var array<string, string> "cliente:campo" => valor */
+    public $values = [];
+
+    public function invoiceLines(int $invoiceId): array
+    {
+        return $this->lines[$invoiceId] ?? [];
+    }
+
+    public function clientCreated(int $clientId): string
+    {
+        return $this->created[$clientId] ?? '';
+    }
+
+    public function customFieldValue(int $clientId, int $fieldId): string
+    {
+        return $this->values[$clientId . ':' . $fieldId] ?? '';
+    }
+
+    public function clientCustomFields(): array
+    {
+        return $this->fields;
+    }
+}
+
+/** clientdetails como o WHMCS entrega (CPF de exemplo válido, não é de ninguém real). */
+function client(array $over = []): array
+{
+    return $over + [
+        'userid' => 50,
+        'firstname' => 'Ana',
+        'lastname' => 'Souza',
+        'email' => 'cliente@example.com',
+        'phonecc' => '55',
+        'phonenumber' => '+55.47999998888',
+        'country' => 'BR',
+        'postcode' => '89000-000',
+        'address1' => 'Rua das Flores, 100',
+        'tax_id' => '529.982.247-25',
+        'language' => '',
+        'customfields' => [],
+    ];
 }

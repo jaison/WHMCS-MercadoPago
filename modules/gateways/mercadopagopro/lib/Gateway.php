@@ -13,12 +13,15 @@ final class Gateway
     private $store;
     /** @var Bridge */
     private $bridge;
+    /** @var Data */
+    private $data;
 
-    public function __construct(Http $http, Store $store, Bridge $bridge)
+    public function __construct(Http $http, Store $store, Bridge $bridge, Data $data)
     {
         $this->http = $http;
         $this->store = $store;
         $this->bridge = $bridge;
+        $this->data = $data;
     }
 
     /** HTML do botão (ou do aviso) na fatura. */
@@ -38,10 +41,10 @@ final class Gateway
         $title = ($en ? 'Invoice #' : 'Fatura #') . $invoiceId;
         try {
             $client = new Client($c->token, $this->http);
-            $email = (string) ($params['clientdetails']['email'] ?? '');
-            $key = Payloads::fingerprint($c, $email);
-            $url = (new PreferenceCache($this->store))->link($invoiceId, $amount, $c, $key, $now, static function () use ($client, $invoiceId, $amount, $email, $systemUrl, $c, $now, $title) {
-                return $client->createPreference(Payloads::preference($invoiceId, $amount, $email, $systemUrl, $c, $now, $title), Client::uuid());
+            $payload = Payloads::preference($invoiceId, $amount, $systemUrl, $c, $now, $title, $this->payer($params, $c), $this->lines($invoiceId));
+            $key = Payloads::fingerprint($c, $payload);
+            $url = (new PreferenceCache($this->store))->link($invoiceId, $amount, $c, $key, $now, static function () use ($client, $payload) {
+                return $client->createPreference($payload, Client::uuid());
             });
         } catch (ApiException $e) {
             $this->bridge->log($c->name, ['fatura' => (string) $invoiceId, 'modo' => $c->mode(), 'erro' => $e->getMessage()], 'Erro ao criar a preferência');
@@ -72,6 +75,33 @@ final class Gateway
             return ['status' => 'success', 'transid' => (string) ($r['id'] ?? ''), 'rawdata' => $raw];
         }
         return ['status' => $status === '' ? 'error' : 'declined', 'rawdata' => $raw];
+    }
+
+    /** payer da preferência. Falha ao ler dados extras do WHMCS não impede o link. */
+    private function payer(array $params, Config $c): array
+    {
+        $client = (array) ($params['clientdetails'] ?? []);
+        $clientId = (int) ($client['userid'] ?? $client['id'] ?? 0);
+        $doc = '';
+        $created = '';
+        try {
+            $doc = Buyer::document($client, $c->docField, $this->data);
+            $created = $clientId > 0 ? $this->data->clientCreated($clientId) : '';
+        } catch (\Throwable $e) {
+            // segue sem documento e sem data de cadastro
+        }
+        return Buyer::payer($client, $c->payerEmail((string) ($client['email'] ?? '')), $doc, $created);
+    }
+
+    private function lines(int $invoiceId): string
+    {
+        try {
+            return implode(' · ', array_filter(array_map(static function ($l) {
+                return trim(preg_replace('/\s+/u', ' ', (string) $l) ?? '');
+            }, $this->data->invoiceLines($invoiceId))));
+        } catch (\Throwable $e) {
+            return '';
+        }
     }
 
     private static function english(array $params): bool

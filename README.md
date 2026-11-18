@@ -13,6 +13,7 @@ O cliente clica em **Pagar com Mercado Pago** na fatura e paga no ambiente do Me
 - Valor pago e taxas do Mercado Pago registrados na transação do WHMCS.
 - Reembolso total ou parcial pelo botão de reembolso do WHMCS.
 - Modos Produção e Teste com credenciais separadas.
+- Dados do comprador que o WHMCS já tem (nome, e-mail, telefone, CPF/CNPJ, endereço, data de cadastro) e itens descritos, como recomenda a medição de qualidade do Mercado Pago. Esses dados vão só ao Mercado Pago.
 - Nenhum dado do pagador e nenhum token no Log de Gateways.
 
 ## Requisitos
@@ -51,7 +52,8 @@ O id do gateway é `mercadopagopro`. Ele convive com outros módulos do Mercado 
 | E-mail do comprador de teste | Opcional, só no modo Teste. No modo Teste, o e-mail do cliente do WHMCS nunca é enviado ao Mercado Pago. |
 | Secret do webhook (produção / teste) | Opcional. É a "assinatura secreta" mostrada na tela de Webhooks. Se preenchido, notificações de webhook sem assinatura válida recebem 401. |
 | Parcelas máximas | De 1 a 24 (padrão 12). |
-| Descrição na fatura do cartão | Opcional (`statement_descriptor`), até 22 caracteres. |
+| Descrição na fatura do cartão | `statement_descriptor`, até 13 caracteres (maiúsculas, sem acento). Vazio: o nome da empresa do WHMCS. |
+| Campo do CPF/CNPJ | De onde vem o documento do comprador: automático (Tax ID; senão campo personalizado com CPF/CNPJ no nome), só o Tax ID, ou um campo personalizado. Só vai se for CPF ou CNPJ válido. |
 | Excluir boleto | Marcado por padrão: o boleto não aparece no Mercado Pago. |
 | Validade do link (horas) | Padrão 72. Depois disso, ao abrir a fatura, um link novo é criado. |
 

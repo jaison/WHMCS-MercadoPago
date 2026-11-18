@@ -16,6 +16,7 @@ use MercadoPagoPro\CurlHttp;
 use MercadoPagoPro\Gateway;
 use MercadoPagoPro\Module;
 use MercadoPagoPro\WhmcsBridge;
+use MercadoPagoPro\WhmcsData;
 
 function mercadopagopro_MetaData()
 {
@@ -34,6 +35,15 @@ function mercadopagopro_config()
         $systemUrl = (string) \WHMCS\Config\Setting::getValue('SystemURL');
     } catch (\Throwable $e) {
         $systemUrl = '';
+    }
+    // Origem do CPF/CNPJ: Tax ID ou um campo personalizado de cliente.
+    $docOptions = ['auto' => 'Automático (Tax ID; senão campo com CPF/CNPJ no nome)', 'tax_id' => 'Tax ID do WHMCS'];
+    try {
+        foreach ((new \MercadoPagoPro\WhmcsData())->clientCustomFields() as $id => $name) {
+            $docOptions['cf:' . $id] = 'Campo personalizado: ' . $name;
+        }
+    } catch (\Throwable $e) {
+        // sem a lista de campos: só as opções fixas
     }
     $webhook = htmlspecialchars(Module::callbackUrl($systemUrl !== '' ? $systemUrl : 'https://SEU-WHMCS'), ENT_QUOTES, 'UTF-8');
 
@@ -61,12 +71,19 @@ function mercadopagopro_config()
             'Size' => '50',
             'Description' => 'Opcional, só no modo Teste: e-mail da conta de comprador de teste do Mercado Pago. Em Teste, o e-mail do cliente do WHMCS nunca é enviado.',
         ],
+        'doc_field' => [
+            'FriendlyName' => 'Campo do CPF/CNPJ',
+            'Type' => 'dropdown',
+            'Options' => $docOptions,
+            'Default' => 'auto',
+            'Description' => 'De onde vem o documento do comprador enviado ao Mercado Pago (só se for CPF ou CNPJ válido).',
+        ],
         'installments' => ['FriendlyName' => 'Parcelas máximas', 'Type' => 'text', 'Size' => '4', 'Default' => '12', 'Description' => 'De 1 a 24.'],
         'descriptor' => [
             'FriendlyName' => 'Descrição na fatura do cartão',
             'Type' => 'text',
-            'Size' => '22',
-            'Description' => 'Opcional (statement_descriptor). Letras, números e espaço, até 22 caracteres.',
+            'Size' => '13',
+            'Description' => 'statement_descriptor, até 13 caracteres (maiúsculas, sem acento). Vazio: nome da empresa do WHMCS.',
         ],
         'exclude_ticket' => ['FriendlyName' => 'Excluir boleto', 'Type' => 'yesno', 'Default' => 'on', 'Description' => 'Não oferecer boleto no Mercado Pago.'],
         'link_hours' => ['FriendlyName' => 'Validade do link (horas)', 'Type' => 'text', 'Size' => '4', 'Default' => '72', 'Description' => 'De 1 a 720.'],
@@ -83,7 +100,7 @@ function mercadopagopro_config()
 function mercadopagopro_link($params)
 {
     try {
-        return (new Gateway(new CurlHttp(), new CapsuleStore(), new WhmcsBridge()))->link($params, time());
+        return (new Gateway(new CurlHttp(), new CapsuleStore(), new WhmcsBridge(), new WhmcsData()))->link($params, time());
     } catch (\Throwable $e) {
         logTransaction((string) ($params['name'] ?? Module::ID), ['fatura' => (string) ($params['invoiceid'] ?? ''), 'erro' => get_class($e)], 'Erro inesperado no link');
         return '';
@@ -93,7 +110,7 @@ function mercadopagopro_link($params)
 function mercadopagopro_refund($params)
 {
     try {
-        return (new Gateway(new CurlHttp(), new CapsuleStore(), new WhmcsBridge()))->refund($params);
+        return (new Gateway(new CurlHttp(), new CapsuleStore(), new WhmcsBridge(), new WhmcsData()))->refund($params);
     } catch (\Throwable $e) {
         return ['status' => 'error', 'rawdata' => ['erro' => get_class($e)]];
     }
