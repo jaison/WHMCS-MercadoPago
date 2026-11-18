@@ -4,6 +4,8 @@ Gateway de pagamento do [Mercado Pago](https://www.mercadopago.com.br/developers
 
 O cliente clica em **Pagar com Mercado Pago** na fatura e paga no ambiente do Mercado Pago com Pix, cartão (parcelado), saldo em conta e, se você quiser, boleto. Ao final, ele volta para a fatura. O pagamento é confirmado no WHMCS automaticamente, no retorno do cliente e pelo webhook, sem baixa em dobro.
 
+**Índice:** [Recursos](#recursos) · [Requisitos](#requisitos) · [Instalação](#instalação) · [Configuração](#configuração) · [Painel do Mercado Pago](#painel-do-mercado-pago) · [Dados enviados](#dados-enviados-ao-mercado-pago) · [Baixa](#baixa) · [Pix e pagamentos pendentes](#pix-e-pagamentos-pendentes) · [Reembolso](#reembolso) · [Modo teste](#modo-teste) · [Colocar em produção](#colocar-em-produção) · [Migrando de outro módulo](#migrando-de-outro-módulo-do-mercado-pago) · [Atualização](#atualização) · [Problemas comuns](#problemas-comuns) · [Remoção](#remoção) · [Medição de qualidade](#medição-de-qualidade) · [Testes](#testes)
+
 ## Recursos
 
 - Order criada em `POST /v1/orders`, com `Authorization: Bearer` e `X-Idempotency-Key`.
@@ -111,6 +113,11 @@ Tudo vem do cadastro e da fatura no WHMCS. Cada campo só vai se existir e for v
 
 **Compatibilidade com a 1.x**: notificações `payment` (webhook e IPN) de links criados pela versão 1.x (Preferências) continuam dando baixa pelo pagamento, com o id numérico como transação. Quando a fatura já tem uma order, a notificação `payment` é ignorada, porque a baixa sai pela order. Assim o mesmo dinheiro não é registrado duas vezes.
 
+## Pix e pagamentos pendentes
+
+- A volta automática para a fatura (`auto_return`) só acontece com pagamento **aprovado**. Quando o pagamento é recusado ou fica pendente, o cliente volta pelo botão "Voltar" do Mercado Pago, e a fatura mostra o aviso de falha, ou nenhum aviso no caso de pendente.
+- Pix, boleto e pagamentos em análise ficam pendentes no início. Eles são baixados pelo **webhook** quando o pagamento é concluído, mesmo que o cliente já tenha fechado a página. Por isso o webhook do evento Order é **essencial para o Pix**. Sem ele, só o retorno do cliente com pagamento aprovado gera baixa.
+
 ## Reembolso
 
 Pelo botão de reembolso da fatura no WHMCS, com o gateway Mercado Pago:
@@ -137,9 +144,59 @@ Os dois usam `X-Idempotency-Key`. O Mercado Pago aceita reembolsos em até 180 d
 
 **`live_mode`.** Pagamentos de teste podem chegar com `live_mode: true`. O gateway não usa esse campo para decidir a baixa: a garantia de modo é o token usado na consulta. O `live_mode` aparece no Log de Gateways só como informação.
 
+## Colocar em produção
+
+1. Em Suas integrações › clique na integração › Editar dados, confira **Tipo de API = Orders**.
+2. Copie as credenciais de **Produção** (Credenciais › Produção › Access Token) para *Produção · Access Token*.
+3. Em Webhooks › Configurar notificações, no modo **Produção**, cadastre a URL do topo da tela do gateway com o evento **Order (Mercado Pago)**. Salve e copie a assinatura secreta para *Produção · Secret do webhook*.
+4. No gateway, escolha **Modo = Produção** e salve.
+5. Faça um **pagamento real pequeno** numa fatura sua e confira:
+   - a volta para a fatura;
+   - a fatura paga, com uma transação `ORD…`;
+   - a taxa.
+   Se quiser, reembolse esse pagamento pelo WHMCS em seguida.
+6. Em **Faturamento › Log de Gateways**, confira a entrada "Successful" desse pagamento e veja se não há "Erro ao criar a order" nem "Assinatura inválida".
+
+## Migrando de outro módulo do Mercado Pago
+
+1. O `mercadopagopro` **convive** com outros módulos do Mercado Pago. Instale e ative o novo sem desativar o antigo.
+2. Teste o novo numa fatura (veja [Colocar em produção](#colocar-em-produção)).
+3. Faturas em aberto que estão com o gateway antigo podem passar para o novo:
+   - **pelo admin**: abra a fatura, troque a *Forma de pagamento* e salve;
+   - **pelo cliente**: na fatura, ele escolhe outra forma de pagamento, se o WHMCS estiver configurado para permitir isso (opção de troca da forma de pagamento em Configurações gerais › Faturas).
+4. Desative o módulo antigo. Ao desativar um gateway, o WHMCS pede para escolher o gateway que vai substituí-lo nos serviços e nas faturas que o usavam. Escolha o **Mercado Pago Checkout Pro**.
+5. **Links já gerados pelo módulo antigo** não são reconhecidos por este módulo. Um pagamento feito por um desses links depois da troca não gera baixa automática aqui e precisa de baixa manual. Para evitar isso, mantenha o módulo antigo ativo (oculto para novas faturas, se preferir) até os links antigos expirarem. Só os links da versão 1.x **deste** módulo continuam reconhecidos.
+
+## Atualização
+
+- Copie os arquivos por cima, ou rode `./deploy.sh`. Não há passo de banco de dados.
+- A tabela `mod_mercadopagopro` é criada sozinha no primeiro uso.
+- Quando uma versão muda o formato do pedido (versão do fingerprint), as orders guardadas são refeitas na próxima visualização de cada fatura. O link antigo deixa de ser oferecido.
+
+## Problemas comuns
+
+| Sintoma | Causa provável | Solução |
+|---|---|---|
+| A fatura mostra "Não foi possível gerar o link de pagamento…" | O Mercado Pago recusou a criação da order. | Em Faturamento › Log de Gateways, abra a entrada "Erro ao criar a order" e leia o campo **erro**, que traz o código e o campo recusado. |
+| "Uma das partes com as quais você está tentando efetuar o pagamento é de teste" | Vendedor de teste com comprador real, ou o contrário. | Em Teste, pague em janela anônima ou logado como comprador de teste, e use o campo *Teste · E-mail do comprador de teste*. |
+| A fatura não é baixada | Webhook sem o evento **Order**, Tipo de API diferente de **Orders**, ou URL errada. | Confira o [Painel do Mercado Pago](#painel-do-mercado-pago). O retorno do cliente com pagamento aprovado dá baixa mesmo sem webhook, mas Pix e pendentes dependem dele. |
+| Webhook recebe 401 (Log de Gateways: "Assinatura inválida") | Secret do modo errado (o de Produção com o gateway em Teste, ou o contrário). | Copie a assinatura secreta do modo certo para o campo de Secret do mesmo modo. |
+| Cartões recusados pelo 3DS | O 3DS exigido não foi completado pelo emissor ou pelo comprador. | Use "Só com risco de fraude" ou "Desligado" no seletor **3DS**. |
+| Aviso "O Mercado Pago só aceita pagamentos em reais (BRL)" | Fatura em outra moeda. | O módulo só cobra em BRL; use outro gateway para essas faturas. |
+
+## Remoção
+
+1. Desative o gateway em Configurações › Pagamentos › Gateways de pagamento. O WHMCS pede um gateway substituto para as faturas e os serviços.
+2. Apague os arquivos `modules/gateways/mercadopagopro.php`, `modules/gateways/mercadopagopro/` e `modules/gateways/callback/mercadopagopro.php`.
+3. Desativar o gateway **não** apaga a tabela `mod_mercadopagopro`, que guarda os links por fatura. Para removê-la, rode no banco do WHMCS (faça backup antes):
+   ```sql
+   DROP TABLE mod_mercadopagopro;
+   ```
+   As transações já registradas nas faturas continuam no WHMCS.
+
 ## Medição de qualidade
 
-O painel do Mercado Pago (*Detalhes da aplicação › Qualidade da integração*) avalia um pagamento real. O mínimo exigido é 73 pontos. O módulo cobre:
+O painel do Mercado Pago (*Detalhes da aplicação › Qualidade da integração*) avalia um pagamento real. Segundo a [página de qualidade da documentação](https://www.mercadopago.com.br/developers/pt/docs/checkout-pro-orders/integration-quality), a pontuação mínima é 73. O módulo cobre:
 
 - **Obrigatórios**:
   - notificações (webhook do evento Order);

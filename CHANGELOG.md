@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.0.4
+
+- Documentação: índice no topo do README e novas seções:
+  - Pix e pagamentos pendentes;
+  - Colocar em produção;
+  - Migrando de outro módulo do Mercado Pago;
+  - Atualização;
+  - Problemas comuns;
+  - Remoção.
+- A pontuação mínima de qualidade (73) agora cita a página da documentação.
+
 ## 2.0.3
 
 - Módulo só em português, para contas do Mercado Pago Brasil (BRL). Saíram os textos em inglês da tela de configuração, do botão e dos avisos na fatura, e também a detecção de idioma.
