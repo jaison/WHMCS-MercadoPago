@@ -19,7 +19,7 @@ O cliente clica em **Pagar com Mercado Pago** na fatura e paga no ambiente do Me
 ## Requisitos
 
 - WHMCS 9.x e PHP 8.1 ou mais novo, com cURL.
-- Faturas em **BRL**. Em outra moeda, o gateway mostra um aviso no lugar do botão.
+- Conta do **Mercado Pago Brasil** (mercadopago.com.br). O módulo é só em português e só cobra em **BRL**. Em fatura de outra moeda, o gateway mostra um aviso no lugar do botão.
 - Uma aplicação em [Suas integrações](https://www.mercadopago.com.br/developers/panel/app), com **Tipo de API = API de Orders** e produto **Checkout Pro**.
 
 ## Instalação
@@ -45,7 +45,7 @@ O id do gateway é `mercadopagopro`. Ele convive com outros módulos do Mercado 
 
 ## Configuração
 
-A tela de configuração do gateway explica cada campo em uma linha, com link para o painel do Mercado Pago, e segue o idioma do admin (português ou inglês). No topo fica a URL do webhook, pronta para copiar.
+A tela de configuração do gateway explica cada campo em uma linha, com link para o painel do Mercado Pago. No topo fica a URL do webhook, pronta para copiar.
 
 Links do painel: [Suas integrações](https://www.mercadopago.com.br/developers/panel/app), [Contas de teste](https://www.mercadopago.com.br/developers/panel/app/test-users) e [Custos](https://www.mercadopago.com.br/costs-section).
 

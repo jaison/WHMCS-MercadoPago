@@ -123,8 +123,8 @@ return [
     },
     'Moeda diferente de BRL: aviso, sem order' => function () use ($params, $now, $gateway) {
         $http = new FakeHttp();
-        $html = $gateway($http)->link($params(['currency' => 'USD', 'clientdetails' => client(['language' => 'english'])]), $now);
-        ok(strpos($html, 'only accepts payments in Brazilian reais') !== false, $html);
+        $html = $gateway($http)->link($params(['currency' => 'USD']), $now);
+        ok(strpos($html, 'só aceita pagamentos em reais') !== false, $html);
         eq([], $http->requests);
     },
     'Erro da API: mensagem amigável; log sem token, e-mail nem documento' => function () use ($params, $now, $gateway) {

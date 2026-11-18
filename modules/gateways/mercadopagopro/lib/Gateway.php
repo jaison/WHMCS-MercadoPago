@@ -28,17 +28,16 @@ final class Gateway
     public function link(array $params, int $now): string
     {
         $c = Config::fromParams($params);
-        $en = self::english($params);
         $invoiceId = (int) ($params['invoiceid'] ?? 0);
         $amount = (float) ($params['amount'] ?? 0);
         if (strtoupper((string) ($params['currency'] ?? '')) !== 'BRL') {
-            return self::notice($en ? 'Mercado Pago only accepts payments in Brazilian reais (BRL).' : 'O Mercado Pago só aceita pagamentos em reais (BRL).');
+            return self::notice('O Mercado Pago só aceita pagamentos em reais (BRL).');
         }
         if ($invoiceId <= 0 || $amount <= 0) {
             return '';
         }
         $systemUrl = (string) ($params['systemurl'] ?? '');
-        $title = ($en ? 'Invoice #' : 'Fatura #') . $invoiceId;
+        $title = 'Fatura #' . $invoiceId;
         try {
             $client = new Client($c->token, $this->http);
             [$payer, $info] = $this->buyer($params, $c, $invoiceId);
@@ -49,10 +48,9 @@ final class Gateway
             });
         } catch (ApiException $e) {
             $this->bridge->log($c->name, ['fatura' => (string) $invoiceId, 'modo' => $c->mode(), 'erro' => $e->getMessage()], 'Erro ao criar a order');
-            return self::notice($en ? 'We could not generate the Mercado Pago payment link right now. Please try again in a few minutes.' : 'Não foi possível gerar o link de pagamento do Mercado Pago agora. Tente de novo em alguns minutos.');
+            return self::notice('Não foi possível gerar o link de pagamento do Mercado Pago agora. Tente de novo em alguns minutos.');
         }
-        $label = $en ? 'Pay with Mercado Pago' : 'Pagar com Mercado Pago';
-        return '<a href="' . htmlspecialchars($url, ENT_QUOTES, 'UTF-8') . '" class="btn btn-primary mercadopagopro-pay" rel="noopener">' . htmlspecialchars($label, ENT_QUOTES, 'UTF-8') . '</a>';
+        return '<a href="' . htmlspecialchars($url, ENT_QUOTES, 'UTF-8') . '" class="btn btn-primary mercadopagopro-pay" rel="noopener">Pagar com Mercado Pago</a>';
     }
 
     /**
@@ -144,12 +142,6 @@ final class Gateway
         } catch (\Throwable $e) {
             return '';
         }
-    }
-
-    private static function english(array $params): bool
-    {
-        $lang = strtolower((string) ($params['clientdetails']['language'] ?? ''));
-        return $lang !== '' && strpos($lang, 'portug') === false;
     }
 
     private static function notice(string $text): string

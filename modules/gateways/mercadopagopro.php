@@ -39,7 +39,7 @@ function mercadopagopro_config()
     } catch (\Throwable $e) {
         // fora do WHMCS ou sem banco: URL de exemplo e só as opções fixas
     }
-    return ConfigScreen::fields($systemUrl, $docFields, ConfigScreen::lang($GLOBALS['_ADMINLANG'] ?? null));
+    return ConfigScreen::fields($systemUrl, $docFields);
 }
 
 function mercadopagopro_link($params)

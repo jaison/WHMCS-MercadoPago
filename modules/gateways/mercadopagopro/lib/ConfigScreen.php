@@ -4,7 +4,7 @@ namespace MercadoPagoPro;
 
 /**
  * Tela de configuração do gateway (_config): rótulos curtos, descrição de uma linha, padrão e
- * link para a página certa do painel do Mercado Pago. pt-BR, ou en quando o admin não é português.
+ * link para a página certa do painel do Mercado Pago. Só pt-BR (módulo para o Mercado Pago Brasil).
  */
 final class ConfigScreen
 {
@@ -12,19 +12,12 @@ final class ConfigScreen
     public const TEST_USERS = 'https://www.mercadopago.com.br/developers/panel/app/test-users';
     public const COSTS = 'https://www.mercadopago.com.br/costs-section';
 
-    /** 'pt' se o idioma do admin for português (ou desconhecido), senão 'en'. */
-    public static function lang(?array $adminLang): string
-    {
-        $locale = strtolower((string) ($adminLang['locale'] ?? ''));
-        return $locale === '' || strpos($locale, 'pt') === 0 ? 'pt' : 'en';
-    }
-
     /**
      * @param array<int, string> $docFields campos personalizados de cliente [id => nome]
      */
-    public static function fields(string $systemUrl, array $docFields, string $lang): array
+    public static function fields(string $systemUrl, array $docFields): array
     {
-        $t = self::texts($lang === 'en' ? 'en' : 'pt');
+        $t = self::texts();
         $url = Module::callbackUrl($systemUrl !== '' ? $systemUrl : 'https://SEU-WHMCS');
         $panel = self::a(self::PANEL, $t['panel']);
         $testUsers = self::a(self::TEST_USERS, $t['test_users']);
@@ -72,36 +65,8 @@ final class ConfigScreen
     }
 
     /** @return array<string, string> */
-    public static function texts(string $lang): array
+    public static function texts(): array
     {
-        if ($lang === 'en') {
-            return [
-                'panel' => 'Your integrations', 'test_users' => 'Test accounts', 'costs' => 'Costs',
-                'webhook' => 'Webhook URL:',
-                'webhook_desc' => 'Where: %s › click the integration › Webhooks › Configure notifications. Add this URL with the <b>Order (Mercado Pago)</b> event, in Production and in Test mode. The integration must use API type = <b>Orders</b> (click the integration › Edit data › API type).',
-                'mode' => 'Mode', 'mode_live' => 'Production', 'mode_test' => 'Test',
-                'mode_desc' => 'Test uses only the Test fields below. Default: Production.',
-                'token_live' => 'Production · Access Token',
-                'token_live_desc' => 'Where: %s › click the integration › Credentials › Production › Access Token.',
-                'secret_live' => 'Production · Webhook secret',
-                'secret_desc' => 'Optional; with it, webhooks without a valid signature are refused (401). Where: %s › click the integration › Webhooks › Configure notifications (Production) › Secret signature, shown after saving the URL.',
-                'token_test' => 'Test · Access Token',
-                'token_test_desc' => 'Where: %s › click the integration › Credentials › Test › Access Token.',
-                'secret_test' => 'Test · Webhook secret',
-                'secret_test_desc' => 'Optional. Where: %s › click the integration › Webhooks › Configure notifications (Test) › Secret signature.',
-                'payer_test' => 'Test · Test buyer e-mail',
-                'payer_test_desc' => 'Optional; in Test mode the customer\'s e-mail is never sent. Where: %s › test buyer › e-mail.',
-                '3ds_risk' => 'Only on fraud risk', '3ds_always' => 'Always', '3ds_off' => 'Off',
-                '3ds_desc' => '3DS authentication with liability shift, sent with each order: "Always" protects more and approves less. Default: only on fraud risk.',
-                'inst' => 'Max installments', 'inst_desc' => '1 to 24, sent with each order (limits installments in this checkout). Interest and interest-free installments follow your account, in %s. Default: 12.',
-                'ticket' => 'Exclude boleto', 'ticket_desc' => 'Do not offer boleto in this checkout (sent with each order). Default: on.',
-                'desc' => 'Card statement text',
-                'desc_desc' => 'statement_descriptor: text on the buyer\'s card statement, up to 13 characters (uppercase, no accents). Sent with each order, instead of your account name. Default (empty): WHMCS company name.',
-                'doc' => 'CPF/CNPJ field', 'doc_auto' => 'Automatic (Tax ID, then a field named CPF/CNPJ)', 'doc_tax' => 'WHMCS Tax ID', 'doc_cf' => 'Custom field:',
-                'doc_desc' => 'Buyer document, sent only if it is a valid CPF or CNPJ. Where, in WHMCS: Tax ID on the client profile (Setup › Tax › Tax ID) or Setup › Custom Client Fields. Default: automatic.',
-                'hours' => 'Link validity (hours)', 'hours_desc' => '1 to 720. After that, a new order is created. Default: 72.',
-            ];
-        }
         return [
             'panel' => 'Suas integrações', 'test_users' => 'Contas de teste', 'costs' => 'Custos',
             'webhook' => 'URL do webhook:',

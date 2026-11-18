@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.0.3
+
+- Módulo só em português, para contas do Mercado Pago Brasil (BRL). Saíram os textos em inglês da tela de configuração, do botão e dos avisos na fatura, e também a detecção de idioma.
+
 ## 2.0.2
 
 - Caminhos da tela de configuração e do README conferidos no painel:
