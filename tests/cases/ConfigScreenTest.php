@@ -13,15 +13,18 @@ return [
         ok(strpos($n, 'Order (Mercado Pago)') !== false && strpos($n, 'Orders') !== false);
         ok(strpos(ConfigScreen::fields('', [], 'pt')['UsageNotes']['Value'], 'https://SEU-WHMCS/modules/gateways/callback/mercadopagopro.php') !== false, 'sem SystemURL: exemplo');
     },
-    'Links do painel abrem em nova aba; contas de teste nos campos de teste' => function () {
+    'Links abrem em nova aba; tokens em Credenciais › Produção/Teste; contas de teste só no comprador; Custos nas parcelas' => function () {
         $f = ConfigScreen::fields('https://x.example', [], 'pt');
-        foreach (['token_live', 'secret_live', 'secret_test'] as $k) {
+        foreach (['token_live', 'secret_live', 'token_test', 'secret_test'] as $k) {
             ok(strpos($f[$k]['Description'], 'href="' . ConfigScreen::PANEL . '" target="_blank" rel="noopener"') !== false, $k);
         }
-        foreach (['token_test', 'test_payer_email'] as $k) {
-            ok(strpos($f[$k]['Description'], 'href="' . ConfigScreen::TEST_USERS . '" target="_blank" rel="noopener"') !== false, $k);
+        ok(strpos($f['test_payer_email']['Description'], 'href="' . ConfigScreen::TEST_USERS . '" target="_blank" rel="noopener"') !== false);
+        foreach (['token_live', 'token_test', 'secret_live', 'secret_test'] as $k) {
+            ok(strpos($f[$k]['Description'], ConfigScreen::TEST_USERS) === false, 'contas de teste não aparecem em ' . $k);
         }
-        ok(strpos($f['token_test']['Description'], 'vendedor de teste') !== false);
+        ok(strpos($f['token_test']['Description'], 'Credenciais › Teste › Access Token') !== false);
+        ok(strpos($f['token_live']['Description'], 'Credenciais › Produção › Access Token') !== false);
+        ok(strpos($f['installments']['Description'], 'href="' . ConfigScreen::COSTS . '" target="_blank" rel="noopener"') !== false);
         ok(strpos($f['test_payer_email']['Description'], 'comprador de teste') !== false);
     },
     'Cada campo com padrão indica o padrão; 3DS padrão "só com risco de fraude"' => function () {

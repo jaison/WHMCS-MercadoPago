@@ -10,6 +10,7 @@ final class ConfigScreen
 {
     public const PANEL = 'https://www.mercadopago.com.br/developers/panel/app';
     public const TEST_USERS = 'https://www.mercadopago.com.br/developers/panel/app/test-users';
+    public const COSTS = 'https://www.mercadopago.com.br/costs-section';
 
     /** 'pt' se o idioma do admin for português (ou desconhecido), senão 'en'. */
     public static function lang(?array $adminLang): string
@@ -27,6 +28,7 @@ final class ConfigScreen
         $url = Module::callbackUrl($systemUrl !== '' ? $systemUrl : 'https://SEU-WHMCS');
         $panel = self::a(self::PANEL, $t['panel']);
         $testUsers = self::a(self::TEST_USERS, $t['test_users']);
+        $costs = self::a(self::COSTS, $t['costs']);
 
         $docOptions = ['auto' => $t['doc_auto'], 'tax_id' => $t['doc_tax']];
         foreach ($docFields as $id => $name) {
@@ -51,7 +53,7 @@ final class ConfigScreen
             ],
             'token_live' => ['FriendlyName' => $t['token_live'], 'Type' => 'password', 'Size' => '80', 'Description' => sprintf($t['token_live_desc'], $panel)],
             'secret_live' => ['FriendlyName' => $t['secret_live'], 'Type' => 'password', 'Size' => '80', 'Description' => sprintf($t['secret_desc'], $panel)],
-            'token_test' => ['FriendlyName' => $t['token_test'], 'Type' => 'password', 'Size' => '80', 'Description' => sprintf($t['token_test_desc'], $testUsers)],
+            'token_test' => ['FriendlyName' => $t['token_test'], 'Type' => 'password', 'Size' => '80', 'Description' => sprintf($t['token_test_desc'], $panel)],
             'secret_test' => ['FriendlyName' => $t['secret_test'], 'Type' => 'password', 'Size' => '80', 'Description' => sprintf($t['secret_test_desc'], $panel)],
             'test_payer_email' => ['FriendlyName' => $t['payer_test'], 'Type' => 'text', 'Size' => '50', 'Description' => sprintf($t['payer_test_desc'], $testUsers)],
             'three_ds' => [
@@ -61,7 +63,7 @@ final class ConfigScreen
                 'Default' => 'on_fraud_risk',
                 'Description' => $t['3ds_desc'],
             ],
-            'installments' => ['FriendlyName' => $t['inst'], 'Type' => 'text', 'Size' => '4', 'Default' => '12', 'Description' => $t['inst_desc']],
+            'installments' => ['FriendlyName' => $t['inst'], 'Type' => 'text', 'Size' => '4', 'Default' => '12', 'Description' => sprintf($t['inst_desc'], $costs)],
             'exclude_ticket' => ['FriendlyName' => $t['ticket'], 'Type' => 'yesno', 'Default' => 'on', 'Description' => $t['ticket_desc']],
             'descriptor' => ['FriendlyName' => $t['desc'], 'Type' => 'text', 'Size' => '13', 'Description' => $t['desc_desc']],
             'doc_field' => ['FriendlyName' => $t['doc'], 'Type' => 'dropdown', 'Options' => $docOptions, 'Default' => 'auto', 'Description' => $t['doc_desc']],
@@ -74,24 +76,24 @@ final class ConfigScreen
     {
         if ($lang === 'en') {
             return [
-                'panel' => 'Your integrations', 'test_users' => 'Test accounts',
+                'panel' => 'Your integrations', 'test_users' => 'Test accounts', 'costs' => 'Costs',
                 'webhook' => 'Webhook URL:',
-                'webhook_desc' => 'Where: %s › your application › Webhooks › Configure notifications. Add this URL with the <b>Order (Mercado Pago)</b> event, in Production and in Test mode. The application must use API type = <b>Orders</b> (your application › Edit data › API type).',
+                'webhook_desc' => 'Where: %s › click the integration › Webhooks › Configure notifications. Add this URL with the <b>Order (Mercado Pago)</b> event, in Production and in Test mode. The integration must use API type = <b>Orders</b> (click the integration › Edit data › API type).',
                 'mode' => 'Mode', 'mode_live' => 'Production', 'mode_test' => 'Test',
                 'mode_desc' => 'Test uses only the Test fields below. Default: Production.',
                 'token_live' => 'Production · Access Token',
-                'token_live_desc' => 'Where: %s › your application › Production credentials › Access Token.',
+                'token_live_desc' => 'Where: %s › click the integration › Credentials › Production › Access Token.',
                 'secret_live' => 'Production · Webhook secret',
-                'secret_desc' => 'Optional; with it, webhooks without a valid signature are refused (401). Where: %s › your application › Webhooks › Configure notifications (Production) › Secret signature, shown after saving the URL.',
+                'secret_desc' => 'Optional; with it, webhooks without a valid signature are refused (401). Where: %s › click the integration › Webhooks › Configure notifications (Production) › Secret signature, shown after saving the URL.',
                 'token_test' => 'Test · Access Token',
-                'token_test_desc' => 'Production Access Token of the <b>test seller</b>, not the application\'s test credentials. Where: %s › test seller › Production credentials.',
+                'token_test_desc' => 'Where: %s › click the integration › Credentials › Test › Access Token.',
                 'secret_test' => 'Test · Webhook secret',
-                'secret_test_desc' => 'Optional. Where: %s › your application › Webhooks › Configure notifications (Test) › Secret signature.',
+                'secret_test_desc' => 'Optional. Where: %s › click the integration › Webhooks › Configure notifications (Test) › Secret signature.',
                 'payer_test' => 'Test · Test buyer e-mail',
                 'payer_test_desc' => 'Optional; in Test mode the customer\'s e-mail is never sent. Where: %s › test buyer › e-mail.',
                 '3ds_risk' => 'Only on fraud risk', '3ds_always' => 'Always', '3ds_off' => 'Off',
                 '3ds_desc' => '3DS authentication with liability shift, sent with each order: "Always" protects more and approves less. Default: only on fraud risk.',
-                'inst' => 'Max installments', 'inst_desc' => '1 to 24, sent with each order (limits installments in this checkout). Who pays interest follows your Mercado Pago account (Your business › Costs). Default: 12.',
+                'inst' => 'Max installments', 'inst_desc' => '1 to 24, sent with each order (limits installments in this checkout). Interest and interest-free installments follow your account, in %s. Default: 12.',
                 'ticket' => 'Exclude boleto', 'ticket_desc' => 'Do not offer boleto in this checkout (sent with each order). Default: on.',
                 'desc' => 'Card statement text',
                 'desc_desc' => 'statement_descriptor: text on the buyer\'s card statement, up to 13 characters (uppercase, no accents). Sent with each order, instead of your account name. Default (empty): WHMCS company name.',
@@ -101,24 +103,24 @@ final class ConfigScreen
             ];
         }
         return [
-            'panel' => 'Suas integrações', 'test_users' => 'Contas de teste',
+            'panel' => 'Suas integrações', 'test_users' => 'Contas de teste', 'costs' => 'Custos',
             'webhook' => 'URL do webhook:',
-            'webhook_desc' => 'Onde: %s › sua aplicação › Webhooks › Configurar notificações. Cadastre esta URL com o evento <b>Order (Mercado Pago)</b>, no modo Produção e no modo Teste. A aplicação deve estar com Tipo de API = <b>Orders</b> (sua aplicação › Editar dados › Tipo de API).',
+            'webhook_desc' => 'Onde: %s › clique na integração › Webhooks › Configurar notificações. Cadastre esta URL com o evento <b>Order (Mercado Pago)</b>, no modo Produção e no modo Teste. A integração deve estar com Tipo de API = <b>Orders</b> (clique na integração › Editar dados › Tipo de API).',
             'mode' => 'Modo', 'mode_live' => 'Produção', 'mode_test' => 'Teste',
             'mode_desc' => 'Em Teste, valem só os campos de Teste abaixo. Padrão: Produção.',
             'token_live' => 'Produção · Access Token',
-            'token_live_desc' => 'Onde: %s › sua aplicação › Credenciais de produção › Access Token.',
+            'token_live_desc' => 'Onde: %s › clique na integração › Credenciais › Produção › Access Token.',
             'secret_live' => 'Produção · Secret do webhook',
-            'secret_desc' => 'Opcional; com ele, webhook sem assinatura válida é recusado (401). Onde: %s › sua aplicação › Webhooks › Configurar notificações (modo Produção) › Assinatura secreta, que aparece depois de salvar a URL.',
+            'secret_desc' => 'Opcional; com ele, webhook sem assinatura válida é recusado (401). Onde: %s › clique na integração › Webhooks › Configurar notificações (modo Produção) › Assinatura secreta, que aparece depois de salvar a URL.',
             'token_test' => 'Teste · Access Token',
-            'token_test_desc' => 'Access Token de produção do <b>vendedor de teste</b>, não as credenciais de teste da aplicação. Onde: %s › vendedor de teste › Credenciais de produção.',
+            'token_test_desc' => 'Onde: %s › clique na integração › Credenciais › Teste › Access Token.',
             'secret_test' => 'Teste · Secret do webhook',
-            'secret_test_desc' => 'Opcional. Onde: %s › sua aplicação › Webhooks › Configurar notificações (modo Teste) › Assinatura secreta.',
+            'secret_test_desc' => 'Opcional. Onde: %s › clique na integração › Webhooks › Configurar notificações (modo Teste) › Assinatura secreta.',
             'payer_test' => 'Teste · E-mail do comprador de teste',
             'payer_test_desc' => 'Opcional; em Teste, o e-mail do cliente nunca é enviado. Onde: %s › comprador de teste › e-mail.',
             '3ds_risk' => 'Só com risco de fraude', '3ds_always' => 'Sempre', '3ds_off' => 'Desligado',
             '3ds_desc' => 'Autenticação 3DS com liability shift, enviada em cada order: "Sempre" protege mais e aprova menos. Padrão: só com risco de fraude.',
-            'inst' => 'Parcelas máximas', 'inst_desc' => 'De 1 a 24, enviado em cada order (limita as parcelas deste checkout). Quem paga os juros segue a sua conta no Mercado Pago (Seu negócio › Custos). Padrão: 12.',
+            'inst' => 'Parcelas máximas', 'inst_desc' => 'De 1 a 24, enviado em cada order (limita as parcelas deste checkout). Juros e parcelamento sem juros seguem a sua conta, em %s. Padrão: 12.',
             'ticket' => 'Excluir boleto', 'ticket_desc' => 'Não oferecer boleto neste checkout (enviado em cada order). Padrão: marcado.',
             'desc' => 'Descrição na fatura do cartão',
             'desc_desc' => 'statement_descriptor: texto na fatura do cartão do comprador, até 13 caracteres (maiúsculas, sem acento). Enviado em cada order, no lugar do nome da sua conta. Padrão (vazio): nome da empresa no WHMCS.',

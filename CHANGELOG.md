@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.0.2
+
+- Caminhos da tela de configuração e do README conferidos no painel:
+  - Access Tokens em Suas integrações › clique na integração › Credenciais › Produção / Teste;
+  - o token de teste é a credencial de **teste** da própria integração, que funciona com a API de Orders;
+  - Webhooks e Tipo de API seguem o mesmo padrão de caminho.
+- Contas de teste citadas só no e-mail do comprador de teste e no passo de pagar em teste.
+- Parcelas máximas: link para [Custos](https://www.mercadopago.com.br/costs-section), onde ficam juros e parcelamento sem juros.
+
 ## 2.0.1
 
 - Tela de configuração reescrita:

@@ -5,7 +5,7 @@ namespace MercadoPagoPro;
 final class Module
 {
     public const ID = 'mercadopagopro';
-    public const VERSION = '2.0.1';
+    public const VERSION = '2.0.2';
     /** Sobe quando o corpo da preferência muda, para não reaproveitar links antigos. */
     public const PREFERENCE_VERSION = 4;
     /** statement_descriptor quando não há nome configurado nem nome da empresa. */
